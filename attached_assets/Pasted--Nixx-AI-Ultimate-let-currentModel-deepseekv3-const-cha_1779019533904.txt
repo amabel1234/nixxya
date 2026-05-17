@@ -1,0 +1,631 @@
+// ===== Nixx AI Ultimate =====
+
+let currentModel = "deepseekv3";
+
+const chatMemory = [];
+const MAX_MEMORY = 10;
+
+// ======================
+// START APP
+// ======================
+
+document.addEventListener("DOMContentLoaded", () => {
+    initApp();
+});
+
+function initApp() {
+
+    try {
+        document.getElementById("initialTime").textContent =
+            getCurrentTime();
+    } catch (e) {}
+
+    loadTheme();
+    loadChatHistory();
+
+    initControls();
+    initModelSelector();
+
+    document.getElementById("messageInput")?.focus();
+
+}
+
+// ======================
+// MODEL SELECTOR
+// ======================
+
+function initModelSelector() {
+
+    const buttons =
+        document.querySelectorAll(".model-option");
+
+    buttons.forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            if (button.classList.contains("off")) return;
+
+            buttons.forEach(btn =>
+                btn.classList.remove("active")
+            );
+
+            button.classList.add("active");
+
+            currentModel = button.dataset.model;
+
+            document.getElementById("sidebar")
+                ?.classList.remove("active");
+
+        });
+
+    });
+
+}
+
+// ======================
+// SYSTEM PROMPT
+// ======================
+
+function buildSystemPrompt() {
+
+    return `
+Kamu adalah Nixx AI.
+
+Aturan:
+- Gunakan bahasa Indonesia
+- Jawab santai dan natural
+- Jangan gunakan LaTeX
+- Jangan meta-talk
+- Jawab langsung inti
+`;
+
+}
+
+// ======================
+// SEND MESSAGE
+// ======================
+
+async function sendMessage() {
+
+    const input =
+        document.getElementById("messageInput");
+
+    if (!input) return;
+
+    const text = input.value.trim();
+
+    if (!text) return;
+
+    input.value = "";
+
+    addMessageToChat(text, true);
+
+    addMemory("user", text);
+
+    toggleLoading(true);
+
+    try {
+
+        const response =
+            await requestAI(text);
+
+        const clean =
+            cleanAiResponse(response);
+
+        addMemory("assistant", clean);
+
+        typeMessage(
+            clean || "AI tidak merespon."
+        );
+
+    }
+
+    catch (err) {
+
+        console.error(err);
+
+        addMessageToChat(
+            "Server AI sedang sibuk.",
+            false
+        );
+
+    }
+
+    finally {
+
+        toggleLoading(false);
+
+    }
+
+}
+
+// ======================
+// REQUEST AI
+// ======================
+
+async function requestAI(prompt) {
+
+    const system =
+        buildSystemPrompt();
+
+    const api =
+`https://api.siputzx.my.id/api/ai/deepseekv3?prompt=${encodeURIComponent(prompt)}&system=${encodeURIComponent(system)}`;
+
+    const response =
+        await fetch(api);
+
+    if (!response.ok) {
+
+        throw new Error(
+            `HTTP ${response.status}`
+        );
+
+    }
+
+    const data =
+        await response.json();
+
+    console.log(data);
+
+    const result =
+        data.data?.response ||
+        data.result ||
+        data.answer ||
+        data.message ||
+        data.response;
+
+    if (!result) {
+
+        throw new Error(
+            "AI tidak merespon"
+        );
+
+    }
+
+    return result;
+
+}
+
+// ======================
+// CLEAN RESPONSE
+// ======================
+
+function cleanAiResponse(text) {
+
+    if (!text) return "";
+
+    let clean =
+        String(text).trim();
+
+    // REMOVE THINK TAG
+    if (clean.includes("</think>")) {
+
+        clean =
+            clean.split("</think>")
+            .pop()
+            .trim();
+
+    }
+
+    // REMOVE LATEX
+    clean = clean.replace(
+        /\\boxed\{([\s\S]*?)\}/g,
+        "$1"
+    );
+
+    clean = clean.replace(
+        /\\text\{([\s\S]*?)\}/g,
+        "$1"
+    );
+
+    clean = clean.replace(
+        /\\\[|\\\]|\\\(|\\\)/g,
+        ""
+    );
+
+    // REMOVE META
+    clean = clean.replace(
+        /^(okay|sure|baik|tentu)/i,
+        ""
+    );
+
+    // REMOVE **
+    clean = clean.replace(/\*\*/g, "");
+
+    return clean.trim();
+
+}
+
+// ======================
+// MEMORY
+// ======================
+
+function addMemory(role, content) {
+
+    chatMemory.push({
+        role,
+        content
+    });
+
+    if (chatMemory.length > MAX_MEMORY) {
+
+        chatMemory.shift();
+
+    }
+
+}
+
+// ======================
+// TYPE EFFECT
+// ======================
+
+function typeMessage(text) {
+
+    const chat =
+        document.getElementById("chatMessages");
+
+    if (!chat) return;
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.className =
+        "message ai-message";
+
+    const content =
+        document.createElement("div");
+
+    content.className =
+        "message-content";
+
+    wrapper.appendChild(content);
+
+    chat.appendChild(wrapper);
+
+    let i = 0;
+
+    const typing =
+        setInterval(() => {
+
+            content.innerHTML +=
+                text.charAt(i);
+
+            i++;
+
+            scrollToBottom();
+
+            if (i >= text.length) {
+
+                clearInterval(typing);
+
+                const time =
+                    document.createElement("div");
+
+                time.className =
+                    "message-time";
+
+                time.innerText =
+                    getCurrentTime();
+
+                wrapper.appendChild(time);
+
+                saveChatHistory();
+
+            }
+
+        }, 10);
+
+}
+
+// ======================
+// ADD MESSAGE
+// ======================
+
+function addMessageToChat(
+    message,
+    isUser = false,
+    save = true
+) {
+
+    const chat =
+        document.getElementById("chatMessages");
+
+    if (!chat) return;
+
+    const div =
+        document.createElement("div");
+
+    div.className =
+        `message ${
+            isUser
+                ? "user-message"
+                : "ai-message"
+        }`;
+
+    div.innerHTML = `
+        <div class="message-content">
+            ${escapeHtml(message)}
+        </div>
+
+        <div class="message-time">
+            ${getCurrentTime()}
+        </div>
+    `;
+
+    chat.appendChild(div);
+
+    if (save) {
+        saveChatHistory();
+    }
+
+    scrollToBottom();
+
+}
+
+// ======================
+// CONTROLS
+// ======================
+
+function initControls() {
+
+    document.getElementById("menuToggle")
+        ?.addEventListener("click", () => {
+
+            document.getElementById("sidebar")
+                ?.classList.toggle("active");
+
+        });
+
+    document.getElementById("themeToggle")
+        ?.addEventListener(
+            "click",
+            toggleTheme
+        );
+
+    document.getElementById("sendButton")
+        ?.addEventListener(
+            "click",
+            sendMessage
+        );
+
+    document.getElementById("messageInput")
+        ?.addEventListener(
+            "keypress",
+            e => {
+
+                if (e.key === "Enter") {
+
+                    sendMessage();
+
+                }
+
+            }
+        );
+
+    document.getElementById("clearBtn")
+        ?.addEventListener(
+            "click",
+            clearChatHistory
+        );
+
+}
+
+// ======================
+// THEME
+// ======================
+
+function toggleTheme() {
+
+    const html =
+        document.documentElement;
+
+    const isDark =
+        html.getAttribute("data-theme")
+        === "dark";
+
+    html.setAttribute(
+        "data-theme",
+        isDark
+            ? "light"
+            : "dark"
+    );
+
+    document.getElementById("themeIcon")
+        .className =
+        isDark
+            ? "fas fa-sun"
+            : "fas fa-moon";
+
+    localStorage.setItem(
+        "theme",
+        isDark
+            ? "light"
+            : "dark"
+    );
+
+}
+
+function loadTheme() {
+
+    const saved =
+        localStorage.getItem("theme");
+
+    if (saved === "dark") {
+
+        document.documentElement
+            .setAttribute(
+                "data-theme",
+                "dark"
+            );
+
+        document.getElementById("themeIcon")
+            .className =
+            "fas fa-moon";
+
+    }
+
+}
+
+// ======================
+// STORAGE
+// ======================
+
+function saveChatHistory() {
+
+    const history = [];
+
+    document
+        .querySelectorAll(".message")
+        .forEach((msg, i) => {
+
+            if (i === 0) return;
+
+            const content =
+                msg.querySelector(
+                    ".message-content"
+                );
+
+            if (content) {
+
+                history.push({
+
+                    text:
+                        content.innerText,
+
+                    isUser:
+                        msg.classList.contains(
+                            "user-message"
+                        )
+
+                });
+
+            }
+
+        });
+
+    localStorage.setItem(
+        "chatHistory",
+        JSON.stringify(history)
+    );
+
+}
+
+function loadChatHistory() {
+
+    const history =
+        localStorage.getItem(
+            "chatHistory"
+        );
+
+    if (!history) return;
+
+    try {
+
+        JSON.parse(history)
+            .forEach(msg => {
+
+                addMessageToChat(
+                    msg.text,
+                    msg.isUser,
+                    false
+                );
+
+            });
+
+    }
+
+    catch {
+
+        localStorage.removeItem(
+            "chatHistory"
+        );
+
+    }
+
+}
+
+function clearChatHistory() {
+
+    if (
+        confirm("Hapus semua chat?")
+    ) {
+
+        localStorage.removeItem(
+            "chatHistory"
+        );
+
+        location.reload();
+
+    }
+
+}
+
+// ======================
+// UTILITIES
+// ======================
+
+function toggleLoading(state) {
+
+    const button =
+        document.getElementById("sendButton");
+
+    const typing =
+        document.getElementById("typingIndicator");
+
+    if (button) {
+
+        button.disabled = state;
+
+    }
+
+    if (typing) {
+
+        typing.style.display =
+            state
+                ? "block"
+                : "none";
+
+    }
+
+}
+
+function escapeHtml(text) {
+
+    const div =
+        document.createElement("div");
+
+    div.innerText = text;
+
+    return div.innerHTML;
+
+}
+
+function scrollToBottom() {
+
+    const chat =
+        document.getElementById("chatMessages");
+
+    if (!chat) return;
+
+    chat.scrollTop =
+        chat.scrollHeight;
+
+}
+
+function getCurrentTime() {
+
+    const now = new Date();
+
+    return (
+        now.getHours()
+            .toString()
+            .padStart(2, "0")
+
+        + ":"
+
+        + now.getMinutes()
+            .toString()
+            .padStart(2, "0")
+    );
+
+}
