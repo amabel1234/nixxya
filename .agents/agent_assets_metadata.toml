@@ -12,3 +12,9 @@ id = "1vQxtJ95AqAAyzLwqE9HT"
 uri = "file://nixx-ai-full.tar.gz"
 type = "unspecified"
 title = "Nixx AI — Full Project (termasuk Vercel config)"
+
+[[outputs]]
+id = "2GexGC_KDNEJHLkiW_C4J"
+uri = "file://nixx-ai-fixed.tar.gz"
+type = "unspecified"
+title = "Nixx AI — Fixed (vercel.json sudah benar)"
