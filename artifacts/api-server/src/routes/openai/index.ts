@@ -191,37 +191,59 @@ router.post(
       content: getSystemPrompt(selectedModel),
     });
 
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
+    const useStreaming = !process.env["VERCEL"];
 
-    let rawResponse = "";
+    if (useStreaming) {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
 
-    const stream = await openai.chat.completions.create({
-      model: "gpt-5.4",
-      max_completion_tokens: 8192,
-      messages: chatMessages,
-      stream: true,
-    });
+      let rawResponse = "";
 
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content;
-      if (content) {
-        rawResponse += content;
-        res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      const stream = await openai.chat.completions.create({
+        model: "gpt-5.4",
+        max_completion_tokens: 8192,
+        messages: chatMessages,
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+          rawResponse += content;
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
       }
+
+      const cleanedResponse = cleanResponse(rawResponse);
+
+      await db.insert(messages).values({
+        conversationId: params.data.id,
+        role: "assistant",
+        content: cleanedResponse,
+      });
+
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } else {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-5.4",
+        max_completion_tokens: 8192,
+        messages: chatMessages,
+        stream: false,
+      });
+
+      const rawResponse = completion.choices[0]?.message?.content ?? "";
+      const cleanedResponse = cleanResponse(rawResponse);
+
+      await db.insert(messages).values({
+        conversationId: params.data.id,
+        role: "assistant",
+        content: cleanedResponse,
+      });
+
+      res.json({ content: cleanedResponse, done: true });
     }
-
-    const cleanedResponse = cleanResponse(rawResponse);
-
-    await db.insert(messages).values({
-      conversationId: params.data.id,
-      role: "assistant",
-      content: cleanedResponse,
-    });
-
-    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-    res.end();
   }
 );
 

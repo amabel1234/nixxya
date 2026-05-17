@@ -105,28 +105,35 @@ export default function ChatThread({ conversationId, selectedModel }: ChatThread
 
       if (!res.ok) throw new Error("Gagal mengirim pesan");
 
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+      const contentType = res.headers.get("content-type") ?? "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      if (contentType.includes("application/json")) {
+        const data = await res.json();
+        if (data.content) setStreamingContent(data.content);
+      } else {
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() ?? "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        for (const part of parts) {
-          const line = part.replace(/^data: /, "").trim();
-          if (!line) continue;
-          try {
-            const evt = JSON.parse(line);
-            if (evt.content) {
-              setStreamingContent((prev) => prev + evt.content);
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop() ?? "";
+
+          for (const part of parts) {
+            const line = part.replace(/^data: /, "").trim();
+            if (!line) continue;
+            try {
+              const evt = JSON.parse(line);
+              if (evt.content) {
+                setStreamingContent((prev) => prev + evt.content);
+              }
+            } catch {
+              // skip malformed
             }
-          } catch {
-            // skip malformed
           }
         }
       }
