@@ -6,3 +6,9 @@ id = "ln9gddDNPNervzMwjqkfX"
 uri = "file://nixx-ai-project.tar.gz"
 type = "unspecified"
 title = "Nixx AI — Project Code"
+
+[[outputs]]
+id = "1vQxtJ95AqAAyzLwqE9HT"
+uri = "file://nixx-ai-full.tar.gz"
+type = "unspecified"
+title = "Nixx AI — Full Project (termasuk Vercel config)"
