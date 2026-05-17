@@ -9,7 +9,6 @@ import * as zod from 'zod';
 
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -90,7 +89,8 @@ export const SendOpenaiMessageParams = zod.object({
 })
 
 export const SendOpenaiMessageBody = zod.object({
-  "content": zod.string()
+  "content": zod.string(),
+  "model": zod.string().optional().describe('AI model identifier selected by user')
 })
 
 

@@ -1,120 +1,161 @@
 import React from "react";
-import { Plus, MessageSquare, Trash2 } from "lucide-react";
 import { OpenaiConversation } from "@workspace/api-client-react";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
+
+interface Model {
+  id: string;
+  label: string;
+  badge: string;
+  icon: string;
+  off: boolean;
+}
 
 interface ChatSidebarProps {
   conversations: OpenaiConversation[];
   activeId: number | null;
+  selectedModel: string;
+  models: Model[];
   onSelect: (id: number) => void;
   onNewChat: () => void;
   onDelete: (id: number) => void;
+  onClearChat: () => void;
+  onSelectModel: (modelId: string) => void;
 }
 
 export default function ChatSidebar({
   conversations,
   activeId,
+  selectedModel,
+  models,
   onSelect,
   onNewChat,
   onDelete,
+  onClearChat,
+  onSelectModel,
 }: ChatSidebarProps) {
   return (
-    <div className="flex h-full flex-col bg-sidebar">
-      <div className="flex h-14 items-center justify-between px-4">
-        <div className="flex items-center gap-2 text-primary">
-          <span className="font-mono text-lg font-bold tracking-tight">Nixx</span>
-        </div>
-      </div>
+    <>
+      {/* New Chat */}
+      <button
+        className="nx-sidebar-btn"
+        onClick={onNewChat}
+        data-testid="button-new-chat"
+      >
+        <span>✏️</span>
+        PERCAKAPAN BARU
+      </button>
 
-      <div className="px-3 pb-4">
-        <Button
-          onClick={onNewChat}
-          className="w-full justify-start gap-2 bg-accent hover:bg-accent/80 text-accent-foreground border border-border shadow-sm rounded-lg"
-          variant="outline"
-        >
-          <Plus className="h-4 w-4" />
-          Percakapan Baru
-        </Button>
-      </div>
-
-      <ScrollArea className="flex-1 px-3">
-        <div className="flex flex-col gap-1 pb-4">
-          {conversations.length === 0 ? (
-            <div className="px-2 py-8 text-center text-xs text-muted-foreground">
-              Belum ada percakapan.
-            </div>
-          ) : (
-            conversations.map((conv) => (
-              <div
-                key={conv.id}
-                className={`group relative flex cursor-pointer items-center justify-between rounded-md px-3 py-2 text-sm transition-colors ${
-                  activeId === conv.id
-                    ? "bg-accent text-accent-foreground font-medium"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                }`}
-                onClick={() => onSelect(conv.id)}
+      {/* Conversations list */}
+      {conversations.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          {conversations.map((conv) => (
+            <button
+              key={conv.id}
+              className="nx-sidebar-btn"
+              onClick={() => onSelect(conv.id)}
+              data-testid={`button-conv-${conv.id}`}
+              style={{
+                fontWeight: activeId === conv.id ? 700 : 400,
+                fontSize: "0.82rem",
+                marginBottom: 4,
+                position: "relative",
+                paddingRight: 40,
+              }}
+            >
+              <span>💬</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                {conv.title}
+              </span>
+              <span
+                role="button"
+                onClick={(e) => { e.stopPropagation(); if (confirm("Hapus percakapan ini?")) onDelete(conv.id); }}
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  fontSize: 12,
+                  opacity: 0.6,
+                  cursor: "pointer",
+                  padding: "2px 4px",
+                }}
+                title="Hapus"
               >
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <MessageSquare className={`h-4 w-4 shrink-0 ${activeId === conv.id ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <div className="flex flex-col overflow-hidden">
-                    <span className="truncate">{conv.title || "Percakapan Tanpa Judul"}</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {format(new Date(conv.createdAt), "d MMM yyyy", { locale: id })}
-                    </span>
-                  </div>
-                </div>
-
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-2 h-6 w-6 opacity-0 transition-opacity hover:bg-destructive/20 hover:text-destructive group-hover:opacity-100"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="border-border bg-card">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Hapus Percakapan?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tindakan ini tidak dapat dibatalkan. Percakapan "{conv.title}" akan dihapus permanen.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel className="bg-transparent hover:bg-accent hover:text-accent-foreground border-border">Batal</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(conv.id);
-                        }}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Hapus
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            ))
-          )}
+                🗑
+              </span>
+            </button>
+          ))}
         </div>
-      </ScrollArea>
-    </div>
+      )}
+
+      {/* Developer */}
+      <button
+        className="nx-sidebar-btn"
+        onClick={() => alert("Developer: Nixx Team\nContact: t.me/nixsukakamu")}
+        data-testid="button-developer"
+      >
+        <span>👤</span>
+        DEVELOPER 🚀
+      </button>
+
+      {/* Store Menu */}
+      <button
+        className="nx-sidebar-btn"
+        onClick={() => window.open("https://list.unix.biz.id", "_blank")}
+        data-testid="button-store"
+      >
+        <span>📚</span>
+        STORE MENU 🛍️
+      </button>
+
+      {/* Community */}
+      <button
+        className="nx-sidebar-btn"
+        onClick={() => window.open("https://t.me/nixsukakamu", "_blank")}
+        data-testid="button-community"
+      >
+        <span>💫</span>
+        COMMUNITY 💫
+      </button>
+
+      {/* SAWERIA/Donation */}
+      <button
+        className="nx-sidebar-btn"
+        onClick={() => window.open("https://iili.io/f7GFZcF.png", "_blank")}
+        data-testid="button-saweria"
+      >
+        <img
+          src="https://iili.io/f7GOsse.jpg"
+          alt="QRIS"
+          style={{ width: 20, borderRadius: 4, objectFit: "cover" }}
+          onError={(e) => { (e.target as HTMLImageElement).replaceWith(document.createTextNode("💳")); }}
+        />
+        SAWERIA ✨
+      </button>
+
+      {/* Clear Chat */}
+      <button
+        className="nx-sidebar-btn nx-clear-btn"
+        onClick={onClearChat}
+        data-testid="button-clear-chat"
+      >
+        <span>🗑️</span>
+        CLEAR CHAT 🗑️
+      </button>
+
+      {/* Model Selector */}
+      <div className="nx-model-selector">
+        <span className="nx-model-label">SELECT AI MODEL:</span>
+        {models.map((model) => (
+          <button
+            key={model.id}
+            className={`nx-model-option${model.id === selectedModel ? " active" : ""}${model.off ? " off" : ""}`}
+            onClick={() => !model.off && onSelectModel(model.id)}
+            data-testid={`button-model-${model.id}`}
+          >
+            <span>{model.icon}</span>
+            {model.label}
+            <span className="nx-model-badge">{model.badge}</span>
+          </button>
+        ))}
+      </div>
+    </>
   );
 }

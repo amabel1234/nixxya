@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListOpenaiConversations,
@@ -6,119 +6,183 @@ import {
   useDeleteOpenaiConversation,
   getListOpenaiConversationsQueryKey,
   getGetOpenaiConversationQueryKey,
+  getListOpenaiMessagesQueryKey,
 } from "@workspace/api-client-react";
+import { useTheme } from "@/App";
 import ChatSidebar from "@/components/chat-sidebar";
 import ChatThread from "@/components/chat-thread";
-import { Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
+const MODELS = [
+  { id: "deepseekv3", label: "Nixx AI",       badge: "Fast",     icon: "🧠", off: false },
+  { id: "christyai",  label: "Christy AI",    badge: "JKT48",    icon: "⭐", off: false },
+  { id: "copilot",    label: "Copilot AI",    badge: "Microsoft",icon: "🤖", off: false },
+  { id: "ripple",     label: "Ripple AI",     badge: "OFF",      icon: "🌊", off: true  },
+  { id: "felo",       label: "Felo AI",       badge: "New",      icon: "🔍", off: false },
+  { id: "turboseek",  label: "Turboseek AI",  badge: "Fast",     icon: "🚀", off: false },
+  { id: "perplexed",  label: "Perplexed AI",  badge: "Advanced", icon: "❓", off: false },
+  { id: "muslim",     label: "Muslim AI",     badge: "Religious",icon: "🕌", off: false },
+  { id: "gpt3",       label: "GPT-3",         badge: "OpenAI",   icon: "🤖", off: false },
+  { id: "gpt4o",      label: "GPT-4o",        badge: "Latest",   icon: "🤖", off: false },
+  { id: "perplexity", label: "Perplexity AI", badge: "Web",      icon: "🔍", off: false },
+  { id: "groqmini",   label: "Groq Mini",     badge: "Fast",     icon: "⚡", off: false },
+  { id: "llama4",     label: "Llama-4 Scout", badge: "17B",      icon: "💻", off: false },
+  { id: "llama33",    label: "Llama-3.3",     badge: "70B",      icon: "🌿", off: false },
+  { id: "gemma",      label: "Gemma 7B",      badge: "Light",    icon: "💎", off: false },
+  { id: "mistral",    label: "Mistral 7B",    badge: "v0.1",     icon: "🌬️", off: false },
+  { id: "aoyo",       label: "Aoyo AI",       badge: "New",      icon: "💬", off: false },
+  { id: "gptoss120",  label: "GPT-OSS 120B",  badge: "120B",     icon: "💻", off: false },
+  { id: "gptoss20",   label: "GPT-OSS 20B",   badge: "20B",      icon: "💻", off: false },
+  { id: "gemini25v1", label: "Gemini 2.5 v1", badge: "Flash",    icon: "🤖", off: false },
+  { id: "gemini25v2", label: "Gemini 2.5 v2", badge: "Flash",    icon: "🤖", off: false },
+  { id: "grok4fast",  label: "Grok 4 Fast",   badge: "Fast",     icon: "⚡", off: false },
+  { id: "grok3mini",  label: "Grok 3 Mini",   badge: "Mini",     icon: "⚡", off: false },
+  { id: "grok3jail1", label: "Grok Jail v1",  badge: "JB",       icon: "🔓", off: false },
+  { id: "grok3jail2", label: "Grok Jail v2",  badge: "JB",       icon: "🔓", off: false },
+  { id: "venice",     label: "Venice AI",     badge: "New",      icon: "🌊", off: false },
+];
+
+export { MODELS };
 
 export default function ChatPage() {
-  const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeConvId, setActiveConvId] = useState<number | null>(null);
+  const [selectedModel, setSelectedModel] = useState("deepseekv3");
+
+  const { isDark, toggle: toggleTheme } = useTheme();
   const queryClient = useQueryClient();
-  const { data: conversations = [], isLoading: isLoadingConversations } = useListOpenaiConversations();
+
+  const { data: conversations = [] } = useListOpenaiConversations();
   const createConversation = useCreateOpenaiConversation();
   const deleteConversation = useDeleteOpenaiConversation();
 
-  // If there are conversations and none is active, set the first one as active
-  useEffect(() => {
-    if (!isLoadingConversations && conversations.length > 0 && !activeConversationId) {
-      setActiveConversationId(conversations[0].id);
-    }
-  }, [conversations, activeConversationId, isLoadingConversations]);
-
   const handleNewChat = () => {
+    const activeModel = MODELS.find((m) => m.id === selectedModel);
     createConversation.mutate(
-      { data: { title: "Percakapan Baru" } },
+      { data: { title: `Percakapan Baru — ${activeModel?.label ?? "Nixx AI"}` } },
       {
         onSuccess: (newConv) => {
           queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
-          setActiveConversationId(newConv.id);
-          // Auto-close sidebar on mobile after selection
-          if (window.innerWidth < 768) {
-            setSidebarOpen(false);
-          }
+          setActiveConvId(newConv.id);
+          setSidebarOpen(false);
         },
       }
     );
   };
 
-  const handleDeleteChat = (id: number) => {
+  const handleDelete = (id: number) => {
     deleteConversation.mutate(
       { id },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
-          if (activeConversationId === id) {
-            setActiveConversationId(null);
-          }
+          if (activeConvId === id) setActiveConvId(null);
         },
       }
     );
   };
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const handleClearChat = () => {
+    if (!activeConvId) return;
+    if (confirm("Hapus percakapan ini?")) {
+      handleDelete(activeConvId);
+    }
+  };
+
+  const handleSelectModel = (modelId: string) => {
+    setSelectedModel(modelId);
+    setSidebarOpen(false);
+  };
 
   return (
-    <div className="flex h-[100dvh] w-full overflow-hidden bg-background">
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <>
+      {/* Floating menu toggle */}
+      <button
+        className="nx-menu-toggle"
+        onClick={() => setSidebarOpen((v) => !v)}
+        data-testid="button-menu-toggle"
+        aria-label="Buka sidebar"
+      >
+        ☰
+      </button>
+
+      {/* Floating theme toggle */}
+      <button
+        className="nx-theme-toggle"
+        onClick={toggleTheme}
+        data-testid="button-theme-toggle"
+        aria-label="Toggle tema"
+      >
+        {isDark ? "☀️" : "🌙"}
+      </button>
+
+      {/* Sidebar overlay */}
+      <div
+        className={`nx-sidebar-overlay ${sidebarOpen ? "active" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
 
       {/* Sidebar */}
-      <div 
-        className={`fixed inset-y-0 left-0 z-50 w-72 md:w-64 lg:w-72 transform border-r border-border bg-sidebar transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
+      <div className={`nx-sidebar ${sidebarOpen ? "active" : ""}`}>
         <ChatSidebar
           conversations={conversations}
-          activeId={activeConversationId}
-          onSelect={(id) => {
-            setActiveConversationId(id);
-            if (window.innerWidth < 768) setSidebarOpen(false);
-          }}
+          activeId={activeConvId}
+          selectedModel={selectedModel}
+          models={MODELS}
+          onSelect={(id) => { setActiveConvId(id); setSidebarOpen(false); }}
           onNewChat={handleNewChat}
-          onDelete={handleDeleteChat}
+          onDelete={handleDelete}
+          onClearChat={handleClearChat}
+          onSelectModel={handleSelectModel}
         />
       </div>
 
-      {/* Main Content Area */}
-      <main className="flex min-w-0 flex-1 flex-col relative">
-        {/* Header (visible mainly on mobile to open sidebar) */}
-        <header className="absolute top-0 left-0 right-0 z-10 flex h-14 items-center gap-2 border-b border-border/40 bg-background/80 px-4 backdrop-blur md:hidden">
-          <Button variant="ghost" size="icon" onClick={toggleSidebar} className="text-muted-foreground">
-            <Menu className="h-5 w-5" />
-          </Button>
-          <div className="text-sm font-semibold tracking-wide text-foreground">Nixx AI</div>
-        </header>
-
-        {activeConversationId ? (
-          <ChatThread conversationId={activeConversationId} />
-        ) : (
-          <div className="flex flex-1 items-center justify-center p-8 text-center">
-            <div className="flex flex-col items-center gap-6 max-w-sm">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-[0_0_20px_rgba(20,184,166,0.15)]">
-                <span className="font-mono text-2xl font-bold">N</span>
-              </div>
-              <div>
-                <h2 className="text-xl font-medium tracking-tight text-foreground mb-2">Nixx AI</h2>
-                <p className="text-sm text-muted-foreground">
-                  Ruang menulis privat yang berpikir bersama Anda. Mulai percakapan baru untuk mengeksplorasi ide.
-                </p>
-              </div>
-              <Button onClick={handleNewChat} className="bg-primary text-primary-foreground hover:bg-primary/90 mt-4 rounded-full px-8">
-                Mulai Percakapan
-              </Button>
+      {/* Main card */}
+      <div className="nx-main">
+        {/* Header */}
+        <header className="nx-header">
+          <div className="nx-logo-container">
+            <img
+              src="https://iili.io/f7nDq8X.jpg"
+              alt="Nixx AI"
+              className="nx-logo-img"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+            <div className="nx-logo-text">
+              <div className="nx-logo">Nixx AI</div>
+              <div className="nx-tagline">26 AI Models • Free Assistant</div>
             </div>
           </div>
-        )}
-      </main>
-    </div>
+        </header>
+
+        {/* Chat area */}
+        <div className="nx-chat-container">
+          {activeConvId ? (
+            <ChatThread
+              conversationId={activeConvId}
+              selectedModel={selectedModel}
+            />
+          ) : (
+            <div
+              className="nx-chat-messages"
+              style={{ justifyContent: "center", alignItems: "center", display: "flex", flexDirection: "column", gap: "16px" }}
+            >
+              <div className="nx-ai-msg nx-message" style={{ maxWidth: "90%", alignSelf: "auto" }}>
+                <div className="nx-msg-content">
+                  Halo! Saya Nixx AI dengan 26 model berbeda. Pilih model AI dari sidebar lalu mulai percakapan baru!
+                </div>
+              </div>
+              <button
+                className="nx-send-btn"
+                style={{ minWidth: 180 }}
+                onClick={handleNewChat}
+                data-testid="button-start-chat"
+              >
+                + Percakapan Baru
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }

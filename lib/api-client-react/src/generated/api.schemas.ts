@@ -29,6 +29,8 @@ export interface OpenaiConversationInput {
 
 export interface OpenaiMessageInput {
   content: string;
+  /** AI model identifier selected by user */
+  model?: string;
 }
 
 export interface OpenaiConversationWithMessages {
