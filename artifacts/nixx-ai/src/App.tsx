@@ -1,74 +1,103 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import React from "react";
+import { ClerkProvider, SignIn, SignUp, SignedIn, SignedOut } from "@clerk/react";
+import { shadcn } from "@clerk/themes";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
+import LandingPage from "@/pages/LandingPage";
+import DashboardPage from "@/pages/DashboardPage";
 import NotFound from "@/pages/not-found";
-import ChatPage from "@/pages/chat";
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      refetchOnWindowFocus: false,
-    },
-  },
+  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
 });
 
-interface ThemeCtx {
-  isDark: boolean;
-  toggle: () => void;
-}
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
+const basePath = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 
-export const ThemeContext = createContext<ThemeCtx>({ isDark: false, toggle: () => {} });
+if (!PUBLISHABLE_KEY) throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY");
 
-export function useTheme() {
-  return useContext(ThemeContext);
-}
+const appearance = {
+  baseTheme: shadcn,
+  variables: {
+    colorPrimary: "#a855f7",
+    colorBackground: "hsl(248, 30%, 6%)",
+    colorInputBackground: "hsl(248, 25%, 15%)",
+    colorText: "hsl(0, 0%, 97%)",
+    colorTextSecondary: "hsl(248, 15%, 55%)",
+    fontFamily: "'Inter', sans-serif",
+    borderRadius: "0.75rem",
+  },
+  elements: {
+    rootBox: "w-full flex justify-center",
+    cardBox: "rounded-2xl w-[420px] max-w-full overflow-hidden",
+    card: "!shadow-none !border-0",
+    formButtonPrimary: "font-semibold",
+  },
+};
 
-function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [isDark, setIsDark] = useState(() => {
-    return localStorage.getItem("nx-theme") === "dark";
-  });
-
-  useEffect(() => {
-    const html = document.documentElement;
-    if (isDark) {
-      html.setAttribute("data-theme", "dark");
-    } else {
-      html.removeAttribute("data-theme");
-    }
-    localStorage.setItem("nx-theme", isDark ? "dark" : "light");
-  }, [isDark]);
-
-  const toggle = () => setIsDark((v) => !v);
-
+function AuthWrapper({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeContext.Provider value={{ isDark, toggle }}>
-      {children}
-    </ThemeContext.Provider>
+    <div
+      className="flex min-h-dvh items-center justify-center relative overflow-hidden px-4"
+      style={{ background: "hsl(248, 30%, 6%)" }}
+    >
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-20 blur-[100px] pointer-events-none"
+        style={{ background: "radial-gradient(circle, #a855f7, #7c3aed, transparent)" }}
+      />
+      <div className="relative z-10 w-full flex justify-center">{children}</div>
+    </div>
   );
 }
 
-function Router() {
+function AppRoutes() {
   return (
     <Switch>
-      <Route path="/" component={ChatPage} />
+      <Route path="/">
+        <>
+          <SignedIn><Redirect to="/dashboard" /></SignedIn>
+          <SignedOut><LandingPage /></SignedOut>
+        </>
+      </Route>
+      <Route path="/sign-in">
+        <AuthWrapper>
+          <SignIn
+            routing="path"
+            path={`${basePath}/sign-in`}
+            signUpUrl={`${basePath}/sign-up`}
+            forceRedirectUrl={`${basePath}/dashboard`}
+          />
+        </AuthWrapper>
+      </Route>
+      <Route path="/sign-up">
+        <AuthWrapper>
+          <SignUp
+            routing="path"
+            path={`${basePath}/sign-up`}
+            signInUrl={`${basePath}/sign-in`}
+            forceRedirectUrl={`${basePath}/dashboard`}
+          />
+        </AuthWrapper>
+      </Route>
+      <Route path="/dashboard">
+        <>
+          <SignedIn><DashboardPage /></SignedIn>
+          <SignedOut><Redirect to="/" /></SignedOut>
+        </>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-function App() {
+export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY} appearance={appearance}>
+      <QueryClientProvider client={queryClient}>
+        <WouterRouter base={basePath}>
+          <AppRoutes />
         </WouterRouter>
-        <Toaster />
-      </ThemeProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
   );
 }
-
-export default App;
