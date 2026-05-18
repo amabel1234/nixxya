@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useUser } from "@clerk/react";
+import { useUser } from "@clerk/clerk-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListOpenaiConversations,
