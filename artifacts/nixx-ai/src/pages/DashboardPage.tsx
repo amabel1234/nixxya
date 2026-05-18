@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -15,7 +15,7 @@ import { ChatInput } from "@/components/chat/ChatInput";
 import { WelcomeScreen } from "@/components/chat/WelcomeScreen";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getModelById, AI_MODELS } from "@/lib/models";
+import { getModelById } from "@/lib/models";
 import { Menu } from "lucide-react";
 
 interface TempMessage {
@@ -23,7 +23,6 @@ interface TempMessage {
   role: string;
   content: string;
   createdAt: string;
-  conversationId?: number | null;
 }
 
 export default function DashboardPage() {
@@ -31,9 +30,9 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const [activeConvId, setActiveConvId] = useState<number | null>(null);
   const [selectedModelId, setSelectedModelId] = useState("deepseekv3");
-  const [streamingMessage, setStreamingMessage] = useState("");
+  const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [localUserMessage, setLocalUserMessage] = useState<TempMessage | null>(null);
+  const [pendingUserMsg, setPendingUserMsg] = useState<TempMessage | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -44,96 +43,103 @@ export default function DashboardPage() {
   const createConv = useCreateOpenaiConversation();
   const deleteConv = useDeleteOpenaiConversation();
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
-      const viewport = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
-      if (viewport) (viewport as HTMLElement).scrollTop = (viewport as HTMLElement).scrollHeight;
+      const vp = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
+      if (vp) (vp as HTMLElement).scrollTop = (vp as HTMLElement).scrollHeight;
     }
-  };
+  }, []);
 
-  useEffect(() => { scrollToBottom(); }, [activeConvData?.messages, streamingMessage, localUserMessage]);
+  useEffect(() => { scrollToBottom(); }, [activeConvData?.messages, streamingContent, pendingUserMsg]);
 
-  const handleNewChat = () => {
+  const handleNewChat = () => { setActiveConvId(null); setStreamingContent(""); setPendingUserMsg(null); };
+
+  const handleClearChat = () => {
+    setStreamingContent("");
+    setPendingUserMsg(null);
+    if (activeConvId) {
+      queryClient.invalidateQueries({ queryKey: getGetOpenaiConversationQueryKey(activeConvId) });
+    }
     setActiveConvId(null);
-    setStreamingMessage("");
-    setLocalUserMessage(null);
   };
 
   const handleDelete = (id: number) => {
     deleteConv.mutate({ id }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
-        if (activeConvId === id) setActiveConvId(null);
+        if (activeConvId === id) handleNewChat();
       },
     });
   };
 
-  const handleSendMessage = async (content: string) => {
+  const handleSend = async (content: string) => {
     if (!content.trim() || isStreaming) return;
-    let targetConvId = activeConvId;
+    let convId = activeConvId;
     const modelObj = getModelById(selectedModelId);
 
-    if (!targetConvId) {
+    if (!convId) {
       try {
         const newConv = await createConv.mutateAsync({
           data: { title: content.slice(0, 50) + (content.length > 50 ? "..." : "") },
         });
-        targetConvId = newConv.id;
-        setActiveConvId(targetConvId);
+        convId = newConv.id;
+        setActiveConvId(convId);
         queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
       } catch { return; }
     }
 
     setIsStreaming(true);
-    setStreamingMessage("");
-    setLocalUserMessage({ id: `temp-${Date.now()}`, role: "user", content, createdAt: new Date().toISOString() });
+    setStreamingContent("");
+    setPendingUserMsg({ id: `u-${Date.now()}`, role: "user", content, createdAt: new Date().toISOString() });
 
     try {
-      const response = await fetch(`/api/openai/conversations/${targetConvId}/messages`, {
+      const res = await fetch(`/api/openai/conversations/${convId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content, model: modelObj.actualModel }),
       });
-      if (!response.ok) throw new Error("Failed");
+      if (!res.ok) throw new Error("Failed");
 
-      const contentType = response.headers.get("content-type") ?? "";
-      if (contentType.includes("text/event-stream")) {
-        const reader = response.body!.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
+      const ct = res.headers.get("content-type") ?? "";
+      if (ct.includes("text/event-stream") && res.body) {
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = "";
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const parts = buffer.split("\n\n");
-          buffer = parts.pop() ?? "";
+          buf += dec.decode(value, { stream: true });
+          const parts = buf.split("\n\n");
+          buf = parts.pop() ?? "";
           for (const part of parts) {
             const line = part.replace(/^data:\s*/, "").trim();
             if (!line) continue;
-            try {
-              const evt = JSON.parse(line);
-              if (evt.content) setStreamingMessage(prev => prev + evt.content);
-            } catch { /* skip */ }
+            try { const e = JSON.parse(line); if (e.content) setStreamingContent(p => p + e.content); } catch { /* skip */ }
           }
         }
       }
     } catch { /* silent */ } finally {
+      const finalConvId = convId;
       setIsStreaming(false);
-      setLocalUserMessage(null);
-      setStreamingMessage("");
-      if (targetConvId) {
-        queryClient.invalidateQueries({ queryKey: getGetOpenaiConversationQueryKey(targetConvId) });
+      setPendingUserMsg(null);
+      setStreamingContent("");
+      if (finalConvId) {
+        queryClient.invalidateQueries({ queryKey: getGetOpenaiConversationQueryKey(finalConvId) });
         queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
       }
     }
   };
 
-  const existingMessages = (activeConvData?.messages ?? []) as TempMessage[];
+  const persisted = (activeConvData?.messages ?? []) as TempMessage[];
+  // Only add streaming message when there's actual content (no empty bubble)
   const displayMessages: TempMessage[] = [
-    ...existingMessages,
-    ...(localUserMessage ? [localUserMessage] : []),
-    ...(isStreaming ? [{ id: "streaming", role: "assistant", content: streamingMessage, createdAt: new Date().toISOString() }] : []),
+    ...persisted,
+    ...(pendingUserMsg ? [pendingUserMsg] : []),
+    ...(isStreaming && streamingContent
+      ? [{ id: "streaming", role: "assistant", content: streamingContent, createdAt: new Date().toISOString() }]
+      : []),
   ];
+  const showLoadingDots = isStreaming && !streamingContent;
 
   const initials = user
     ? (`${user.firstName?.charAt(0) ?? ""}${user.lastName?.charAt(0) ?? ""}`.trim() || user.emailAddresses[0]?.emailAddress.charAt(0).toUpperCase())
@@ -149,6 +155,7 @@ export default function DashboardPage() {
         onSelect={setActiveConvId}
         onNew={handleNewChat}
         onDelete={handleDelete}
+        onClearChat={handleClearChat}
         selectedModelId={selectedModelId}
         onModelChange={setSelectedModelId}
         open={sidebarOpen}
@@ -157,14 +164,15 @@ export default function DashboardPage() {
       />
 
       <main className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
         <div
           className="flex items-center justify-between px-4 py-3 shrink-0"
           style={{ background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 60%, #c026d3 100%)" }}
         >
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="h-8 w-8 flex items-center justify-center rounded-full text-white/80 hover:bg-white/20 transition-colors"
+              onClick={() => setSidebarOpen(true)}
+              className="h-9 w-9 flex items-center justify-center rounded-full border-2 border-white/30 text-white hover:bg-white/20 transition-colors"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -179,22 +187,26 @@ export default function DashboardPage() {
               <p className="text-white/75 text-xs">26 Model AI · Gratis Selamanya ✨</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-white" style={{ background: "rgba(255,255,255,0.15)" }}>
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white"
+            style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(8px)" }}
+          >
             <span>{currentModel.emoji}</span>
             <span className="hidden sm:inline">{currentModel.label}</span>
           </div>
         </div>
 
+        {/* Messages */}
         <ScrollArea ref={scrollRef} className="flex-1">
           <div className="flex flex-col min-h-full">
             {displayMessages.length === 0 && !isStreaming ? (
-              <div className="flex-1 flex items-center justify-center p-6" style={{ minHeight: "60vh" }}>
-                <WelcomeScreen onPrompt={handleSendMessage} />
+              <div className="flex-1 flex items-center justify-center p-6" style={{ minHeight: "65vh" }}>
+                <WelcomeScreen onPrompt={handleSend} />
               </div>
             ) : (
               <MessageList
                 messages={displayMessages}
-                isLoading={isStreaming && !streamingMessage}
+                isLoading={showLoadingDots}
                 userAvatarUrl={user?.imageUrl}
                 userInitials={initials}
               />
@@ -202,7 +214,8 @@ export default function DashboardPage() {
           </div>
         </ScrollArea>
 
-        <ChatInput onSend={handleSendMessage} disabled={isStreaming} />
+        {/* Input */}
+        <ChatInput onSend={handleSend} disabled={isStreaming} />
       </main>
     </div>
   );
