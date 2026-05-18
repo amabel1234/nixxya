@@ -1,6 +1,6 @@
 import React from "react";
-import { ClerkProvider, SignIn, SignUp, SignedIn, SignedOut } from "@clerk/react";
-import { shadcn } from "@clerk/themes";
+import { ClerkProvider, SignIn, SignUp, SignedIn, SignedOut } from "@clerk/clerk-react";
+import { dark } from "@clerk/themes";
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import LandingPage from "@/pages/LandingPage";
@@ -17,7 +17,7 @@ const basePath = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 if (!PUBLISHABLE_KEY) throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY");
 
 const appearance = {
-  baseTheme: shadcn,
+  baseTheme: dark,
   variables: {
     colorPrimary: "#a855f7",
     colorBackground: "hsl(248, 30%, 6%)",
@@ -29,7 +29,6 @@ const appearance = {
   },
   elements: {
     rootBox: "w-full flex justify-center",
-    cardBox: "rounded-2xl w-[420px] max-w-full overflow-hidden",
     card: "!shadow-none !border-0",
     formButtonPrimary: "font-semibold",
   },
@@ -65,7 +64,7 @@ function AppRoutes() {
             routing="path"
             path={`${basePath}/sign-in`}
             signUpUrl={`${basePath}/sign-up`}
-            forceRedirectUrl={`${basePath}/dashboard`}
+            afterSignInUrl={`${basePath}/dashboard`}
           />
         </AuthWrapper>
       </Route>
@@ -75,7 +74,7 @@ function AppRoutes() {
             routing="path"
             path={`${basePath}/sign-up`}
             signInUrl={`${basePath}/sign-in`}
-            forceRedirectUrl={`${basePath}/dashboard`}
+            afterSignUpUrl={`${basePath}/dashboard`}
           />
         </AuthWrapper>
       </Route>

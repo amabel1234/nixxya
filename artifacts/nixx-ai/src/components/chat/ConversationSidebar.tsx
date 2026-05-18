@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { Plus, Trash2, LogOut, X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useUser, useClerk } from "@clerk/react";
+import { useUser, useClerk } from "@clerk/clerk-react";
 import { AI_MODELS } from "@/lib/models";
 import type { OpenaiConversation } from "@workspace/api-client-react";
 
