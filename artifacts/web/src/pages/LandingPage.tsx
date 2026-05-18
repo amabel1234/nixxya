@@ -7,7 +7,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-primary/30">
       <header className="container mx-auto px-6 py-6 flex items-center justify-between border-b border-border/10">
         <div className="flex items-center gap-2">
-          <img src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`} alt="Nixxya" className="h-8" />
+          <img src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`} alt="Nixx Ai" className="h-8" />
         </div>
         <nav className="flex items-center gap-4">
           <Link href="/sign-in" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -31,7 +31,7 @@ export default function LandingPage() {
         >
           <div className="inline-flex items-center rounded-full border border-border bg-background/50 px-3 py-1 text-sm font-medium backdrop-blur-sm mb-8">
             <span className="flex h-2 w-2 rounded-full bg-primary mr-2"></span>
-            Nixxya 1.0 is now live
+            Nixx Ai 1.0 is now live
           </div>
           
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-foreground mb-6 leading-tight">

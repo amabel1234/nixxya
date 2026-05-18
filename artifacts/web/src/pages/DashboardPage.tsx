@@ -24,7 +24,7 @@ export default function DashboardContent() {
       {/* Sidebar */}
       <aside className="w-full md:w-64 border-r border-border bg-card flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-border">
-          <img src={`${basePath}/logo.svg`} alt="Nixxya" className="h-6" />
+          <img src={`${basePath}/logo.svg`} alt="Nixx Ai" className="h-6" />
         </div>
         
         <nav className="flex-1 p-4 space-y-2">
