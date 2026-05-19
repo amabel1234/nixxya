@@ -1,5 +1,5 @@
 import React from "react";
-import { ClerkProvider, SignIn, SignUp, SignedIn, SignedOut } from "@clerk/clerk-react";
+import { ClerkProvider, SignIn, SignUp, SignedIn, SignedOut, ClerkLoading, ClerkLoaded } from "@clerk/clerk-react";
 import { dark } from "@clerk/themes";
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -31,8 +31,38 @@ const appearance = {
     rootBox: "w-full flex justify-center",
     card: "!shadow-none !border-0",
     formButtonPrimary: "font-semibold",
+    // Sembunyikan loading spinner bawaan Clerk — kita punya sendiri
+    spinner: "hidden",
   },
 };
+
+// Skeleton saat Clerk JS masih loading
+function ClerkSkeleton() {
+  return (
+    <div
+      style={{
+        minHeight: "100dvh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "hsl(248, 30%, 6%)",
+        flexDirection: "column",
+        gap: "1rem",
+      }}
+    >
+      <div
+        style={{
+          width: 48, height: 48, borderRadius: "50%",
+          border: "3px solid rgba(168,85,247,0.2)",
+          borderTopColor: "#a855f7",
+          animation: "spin .7s linear infinite",
+        }}
+      />
+      <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
+      <p style={{ color: "rgba(168,85,247,0.7)", fontSize: 14, margin: 0 }}>Memuat...</p>
+    </div>
+  );
+}
 
 function AuthWrapper({ children }: { children: React.ReactNode }) {
   return (
@@ -60,22 +90,28 @@ function AppRoutes() {
       </Route>
       <Route path="/sign-in">
         <AuthWrapper>
-          <SignIn
-            routing="path"
-            path={`${basePath}/sign-in`}
-            signUpUrl={`${basePath}/sign-up`}
-            afterSignInUrl={`${basePath}/dashboard`}
-          />
+          <ClerkLoading><ClerkSkeleton /></ClerkLoading>
+          <ClerkLoaded>
+            <SignIn
+              routing="path"
+              path={`${basePath}/sign-in`}
+              signUpUrl={`${basePath}/sign-up`}
+              fallbackRedirectUrl={`${basePath}/dashboard`}
+            />
+          </ClerkLoaded>
         </AuthWrapper>
       </Route>
       <Route path="/sign-up">
         <AuthWrapper>
-          <SignUp
-            routing="path"
-            path={`${basePath}/sign-up`}
-            signInUrl={`${basePath}/sign-in`}
-            afterSignUpUrl={`${basePath}/dashboard`}
-          />
+          <ClerkLoading><ClerkSkeleton /></ClerkLoading>
+          <ClerkLoaded>
+            <SignUp
+              routing="path"
+              path={`${basePath}/sign-up`}
+              signInUrl={`${basePath}/sign-in`}
+              fallbackRedirectUrl={`${basePath}/dashboard`}
+            />
+          </ClerkLoaded>
         </AuthWrapper>
       </Route>
       <Route path="/dashboard">
@@ -91,10 +127,16 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY} appearance={appearance}>
+    <ClerkProvider
+      publishableKey={PUBLISHABLE_KEY}
+      appearance={appearance}
+    >
       <QueryClientProvider client={queryClient}>
         <WouterRouter base={basePath}>
-          <AppRoutes />
+          <ClerkLoading><ClerkSkeleton /></ClerkLoading>
+          <ClerkLoaded>
+            <AppRoutes />
+          </ClerkLoaded>
         </WouterRouter>
       </QueryClientProvider>
     </ClerkProvider>
