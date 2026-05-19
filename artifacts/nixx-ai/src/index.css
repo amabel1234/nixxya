@@ -816,3 +816,182 @@ body:has(.nx-landing) {
   .nx-send-btn { padding: 11px 16px; min-width: 72px; font-size: 12px; }
   .nx-input { font-size: 14px; }
 }
+
+/* ─── Auth Page ───────────────────────────────────────────────────────────── */
+.nx-auth-bg {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(248, 30%, 6%);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.nx-auth-glow {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px; height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124,58,237,0.25), rgba(168,85,247,0.1), transparent 70%);
+  pointer-events: none;
+}
+.nx-auth-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  background: hsl(248, 25%, 10%);
+  border: 1px solid rgba(168,85,247,0.2);
+  border-radius: 20px;
+  padding: 36px 32px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.nx-auth-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.nx-auth-logo-icon {
+  font-size: 32px;
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: rgba(168,85,247,0.15);
+  border: 2px solid rgba(168,85,247,0.4);
+  display: flex; align-items: center; justify-content: center;
+}
+.nx-auth-logo-text {
+  font-size: 1.6rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #a855f7, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.nx-auth-heading {
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #f0eeff;
+  margin-bottom: 6px;
+}
+.nx-auth-subtext {
+  text-align: center;
+  font-size: 0.85rem;
+  color: rgba(168,85,247,0.7);
+  margin-bottom: 24px;
+}
+.nx-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.nx-auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.nx-auth-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(240,238,255,0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.nx-auth-input {
+  width: 100%;
+  background: hsl(248, 25%, 15%);
+  border: 1.5px solid rgba(168,85,247,0.2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #f0eeff;
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  outline: none;
+}
+.nx-auth-input:focus {
+  border-color: #a855f7;
+  background: hsl(248, 25%, 17%);
+}
+.nx-auth-input::placeholder { color: rgba(168,85,247,0.35); }
+.nx-auth-pass-wrap { position: relative; }
+.nx-auth-pass-input { padding-right: 44px; }
+.nx-auth-pass-toggle {
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none;
+  cursor: pointer; font-size: 16px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.nx-auth-pass-toggle:hover { opacity: 1; }
+.nx-auth-error {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: #fca5a5;
+}
+.nx-auth-submit {
+  width: 100%;
+  padding: 13px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 46px;
+}
+.nx-auth-submit:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+.nx-auth-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.nx-auth-spinner {
+  width: 20px; height: 20px;
+  border: 2.5px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block;
+}
+.nx-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 20px;
+  font-size: 0.85rem;
+  color: rgba(240,238,255,0.5);
+  flex-wrap: wrap;
+}
+.nx-auth-switch-btn {
+  background: none; border: none;
+  color: #a855f7; font-weight: 600;
+  cursor: pointer; font-size: 0.85rem;
+  padding: 0;
+  text-decoration: underline;
+  font-family: inherit;
+}
+.nx-auth-switch-btn:hover { color: #c084fc; }
+.nx-auth-back-link {
+  display: block;
+  text-align: center;
+  margin-top: 16px;
+  font-size: 0.82rem;
+  color: rgba(168,85,247,0.5);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.nx-auth-back-link:hover { color: #a855f7; }
+@media (max-width: 480px) {
+  .nx-auth-card { padding: 28px 20px; }
+  .nx-auth-heading { font-size: 1.15rem; }
+}
