@@ -88,6 +88,16 @@ export default function DashboardContent() {
   const handleSendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isStreaming) return;
 
+    // Tampilkan pesan pengguna SEBELUM API call (optimistic update)
+    setLocalUserMessage({
+      id: `temp-user-${Date.now()}`,
+      role: "user",
+      content,
+      createdAt: new Date().toISOString(),
+    });
+    setIsStreaming(true);
+    setStreamingMessage("");
+
     let targetConvId = activeConvId;
     const modelObj = getModelById(selectedModelId);
 
@@ -103,19 +113,12 @@ export default function DashboardContent() {
         setActiveConvId(targetConvId);
         queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
       } catch {
-        toast.error("Gagal memulai percakapan. Coba lagi.");
+        toast.error("Gagal memulai percakapan. Periksa koneksi internet.");
+        setLocalUserMessage(null);
+        setIsStreaming(false);
         return;
       }
     }
-
-    setIsStreaming(true);
-    setStreamingMessage("");
-    setLocalUserMessage({
-      id: `temp-user-${Date.now()}`,
-      role: "user",
-      content,
-      createdAt: new Date().toISOString(),
-    });
 
     try {
       const response = await fetch(getSendOpenaiMessageUrl(targetConvId), {
