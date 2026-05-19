@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "21tBSX4lcHcZ0W6qzzuvd"
+uri = "file://nixx-ai-project.tar.gz"
+type = "unspecified"
+title = "Nixx AI — Project Files"
