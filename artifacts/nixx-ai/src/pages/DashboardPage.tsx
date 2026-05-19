@@ -10,15 +10,15 @@ import {
   getGetOpenaiConversationQueryKey,
 } from "@workspace/api-client-react";
 import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
-import { MessageList } from "@/components/chat/MessageList";
-import { ChatInput } from "@/components/chat/ChatInput";
 import { WelcomeScreen } from "@/components/chat/WelcomeScreen";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getModelById } from "@/lib/models";
-import { Menu } from "lucide-react";
 
 interface TempMsg { id: string; role: string; content: string; createdAt: string; }
+
+function formatTime(dateStr: string) {
+  try { return new Date(dateStr).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false }); }
+  catch { return ""; }
+}
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -29,7 +29,17 @@ export default function DashboardPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingUserMsg, setPendingUserMsg] = useState<TempMsg | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">(() =>
+    (localStorage.getItem("nx-theme") as "dark" | "light") || "dark"
+  );
+  const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    document.body.setAttribute("data-theme", theme);
+    localStorage.setItem("nx-theme", theme);
+  }, [theme]);
 
   const { data: conversations = [] } = useListOpenaiConversations();
   const { data: convData } = useGetOpenaiConversation(activeConvId!, {
@@ -42,19 +52,25 @@ export default function DashboardPage() {
   const deleteConv = useDeleteOpenaiConversation();
 
   const scrollToBottom = useCallback(() => {
-    if (!scrollRef.current) return;
-    const vp = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
-    if (vp) (vp as HTMLElement).scrollTop = (vp as HTMLElement).scrollHeight;
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, []);
 
   useEffect(() => { scrollToBottom(); }, [convData?.messages, streamingContent, pendingUserMsg]);
 
-  const handleNewChat = () => { setActiveConvId(null); setStreamingContent(""); setPendingUserMsg(null); };
+  // Auto-resize textarea
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`;
+    }
+  }, [input]);
 
-  const handleClearChat = () => {
-    setStreamingContent(""); setPendingUserMsg(null); setActiveConvId(null);
+  const handleNewChat = () => {
+    setActiveConvId(null); setStreamingContent(""); setPendingUserMsg(null); setSidebarOpen(false);
   };
-
+  const handleClearChat = () => {
+    setStreamingContent(""); setPendingUserMsg(null); setActiveConvId(null); setSidebarOpen(false);
+  };
   const handleDelete = (id: number) => {
     deleteConv.mutate({ id }, {
       onSuccess: () => {
@@ -66,6 +82,8 @@ export default function DashboardPage() {
 
   const handleSend = async (content: string) => {
     if (!content.trim() || isStreaming) return;
+    setInput("");
+    if (inputRef.current) inputRef.current.style.height = "auto";
     let convId = activeConvId;
     const modelObj = getModelById(selectedModelId);
 
@@ -121,13 +139,13 @@ export default function DashboardPage() {
     }
   };
 
-  const persisted = (convData?.messages ?? []) as TempMsg[];
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(input); }
+  };
 
-  // Deduplicate: don't show pendingUserMsg if already in persisted (avoids double message)
+  const persisted = (convData?.messages ?? []) as TempMsg[];
   const lastPersisted = persisted[persisted.length - 1];
-  const showPending = pendingUserMsg && !(
-    lastPersisted?.role === "user" && lastPersisted?.content === pendingUserMsg.content
-  );
+  const showPending = pendingUserMsg && !(lastPersisted?.role === "user" && lastPersisted?.content === pendingUserMsg.content);
 
   const displayMessages: TempMsg[] = [
     ...persisted,
@@ -137,77 +155,104 @@ export default function DashboardPage() {
       : []),
   ];
   const showDots = isStreaming && !streamingContent;
-
-  const initials = user
-    ? (`${user.firstName?.charAt(0) ?? ""}${user.lastName?.charAt(0) ?? ""}`.trim() || user.emailAddresses[0]?.emailAddress.charAt(0).toUpperCase())
-    : "U";
+  const hasMessages = displayMessages.length > 0 || isStreaming;
   const currentModel = getModelById(selectedModelId);
   const basePath = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 
   return (
-    <div className="h-dvh flex overflow-hidden" style={{ background: "hsl(248, 30%, 6%)" }}>
+    <>
+      {/* Fixed controls */}
+      <button className="nx-menu-toggle" onClick={() => setSidebarOpen(true)} title="Menu">☰</button>
+      <button
+        className="nx-theme-toggle"
+        onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
+        title="Ganti tema"
+      >{theme === "dark" ? "☀️" : "🌙"}</button>
+
+      {/* Sidebar overlay */}
+      <div className={`nx-sidebar-overlay ${sidebarOpen ? "active" : ""}`} onClick={() => setSidebarOpen(false)} />
+
+      {/* Sidebar */}
       <ConversationSidebar
         conversations={conversations}
         activeId={activeConvId}
-        onSelect={(id) => { setActiveConvId(id); setPendingUserMsg(null); setStreamingContent(""); }}
+        onSelect={(id) => { setActiveConvId(id); setPendingUserMsg(null); setStreamingContent(""); setSidebarOpen(false); }}
         onNew={handleNewChat}
         onDelete={handleDelete}
         onClearChat={handleClearChat}
         selectedModelId={selectedModelId}
-        onModelChange={setSelectedModelId}
+        onModelChange={(id) => { setSelectedModelId(id); setSidebarOpen(false); }}
         open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        userImageUrl={user?.imageUrl}
+        userName={user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] ?? "User"}
         basePath={basePath}
       />
 
-      <main className="flex-1 flex flex-col min-w-0">
-        <div
-          className="flex items-center justify-between px-4 py-3 shrink-0"
-          style={{ background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 60%, #c026d3 100%)" }}
-        >
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="h-9 w-9 flex items-center justify-center rounded-full border-2 border-white/30 text-white hover:bg-white/20 transition-colors shrink-0"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <Avatar className="h-8 w-8 border-2 border-white/30 shrink-0">
-              <AvatarImage src={user?.imageUrl} />
-              <AvatarFallback className="text-white font-bold text-xs" style={{ background: "rgba(255,255,255,0.2)" }}>
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="font-bold text-white text-sm leading-tight">Nixx AI</p>
-              <p className="text-white/75 text-xs truncate">26 Model AI · Gratis Selamanya ✨</p>
+      {/* Main card */}
+      <main className="nx-main">
+        {/* Header */}
+        <div className="nx-header">
+          <div className="nx-logo-container">
+            <div style={{ width:42, height:42, borderRadius:"50%", background:"rgba(255,255,255,0.2)", border:"2.5px solid rgba(255,255,255,0.5)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>🧠</div>
+            <div>
+              <div className="nx-logo">Nixx AI</div>
+              <div className="nx-tagline">26 Model AI · Gratis Selamanya ✨</div>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold text-white shrink-0 ml-2" style={{ background: "rgba(255,255,255,0.18)" }}>
+          <div className="nx-model-chip">
             <span>{currentModel.emoji}</span>
-            <span className="hidden sm:inline max-w-[80px] truncate">{currentModel.label}</span>
+            <span style={{ maxWidth:80, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{currentModel.label}</span>
           </div>
         </div>
 
-        <ScrollArea ref={scrollRef} className="flex-1">
-          <div className="flex flex-col min-h-full">
-            {displayMessages.length === 0 && !isStreaming ? (
-              <div className="flex-1 flex items-center justify-center p-6" style={{ minHeight: "65vh" }}>
-                <WelcomeScreen onPrompt={handleSend} />
-              </div>
-            ) : (
-              <MessageList
-                messages={displayMessages}
-                isLoading={showDots}
-                userAvatarUrl={user?.imageUrl}
-                userInitials={initials}
-              />
-            )}
-          </div>
-        </ScrollArea>
+        {/* Content */}
+        <div className="nx-chat-container">
+          {!hasMessages ? (
+            <WelcomeScreen onPrompt={(text) => { setInput(text); handleSend(text); }} />
+          ) : (
+            <div className="nx-chat-messages" ref={scrollRef}>
+              {displayMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`nx-message ${msg.role === "user" ? "nx-user-msg" : "nx-ai-msg"}`}
+                >
+                  <div className="nx-msg-content">
+                    {msg.content}
+                    {msg.id === "streaming" && <span className="nx-cursor" />}
+                  </div>
+                  <div className="nx-msg-time">{formatTime(msg.createdAt)}</div>
+                </div>
+              ))}
+              {showDots && (
+                <div className="nx-typing">
+                  <div className="nx-typing-dots"><span /><span /><span /></div>
+                </div>
+              )}
+            </div>
+          )}
 
-        <ChatInput onSend={handleSend} disabled={isStreaming} />
+          {/* Input always at bottom */}
+          <div className="nx-input-container">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ketik pesan Anda di sini..."
+              disabled={isStreaming}
+              className="nx-input"
+              rows={1}
+            />
+            <button
+              onClick={() => handleSend(input)}
+              disabled={!input.trim() || isStreaming}
+              className="nx-send-btn"
+            >
+              ➤ SEND
+            </button>
+          </div>
+        </div>
       </main>
-    </div>
+    </>
   );
 }
