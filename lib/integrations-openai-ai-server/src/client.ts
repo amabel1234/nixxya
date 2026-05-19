@@ -1,25 +1,50 @@
 import OpenAI from "openai";
 
-function createClient(): OpenAI {
-  const hasReplitIntegration =
-    !!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
-    !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-
-  const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
-
-  if (hasReplitIntegration) {
-    return new OpenAI({
-      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-    });
+function createClient(): { client: OpenAI; model: string; useStreaming: boolean } {
+  if (
+    process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
+    process.env.AI_INTEGRATIONS_OPENAI_API_KEY
+  ) {
+    return {
+      client: new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      }),
+      model: "gpt-4o-mini",
+      useStreaming: true,
+    };
   }
 
-  if (hasOpenAIKey) {
-    return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (process.env.OPENAI_API_KEY) {
+    return {
+      client: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),
+      model: "gpt-4o-mini",
+      useStreaming: true,
+    };
   }
 
-  // Fallback: return client that will throw on use
-  return new OpenAI({ apiKey: "placeholder-set-OPENAI_API_KEY-on-vercel" });
+  if (process.env.GITHUB_TOKEN) {
+    return {
+      client: new OpenAI({
+        apiKey: process.env.GITHUB_TOKEN,
+        baseURL: "https://models.inference.ai.azure.com",
+      }),
+      model: "gpt-4o-mini",
+      useStreaming: true,
+    };
+  }
+
+  return {
+    client: new OpenAI({
+      apiKey: "dummy",
+      baseURL: "https://text.pollinations.ai/openai",
+    }),
+    model: "gpt-oss-20b",
+    useStreaming: false,
+  };
 }
 
-export const openai = createClient();
+const { client, model, useStreaming } = createClient();
+export const openai = client;
+export const AI_MODEL = model;
+export const STREAMING_ENABLED = useStreaming;

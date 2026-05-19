@@ -1,24 +1,23 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Nixx AI API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
   - name: openai
-    description: OpenAI AI chat operations
+    description: Chat conversation operations
+  - name: user
+    description: User profile operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -30,7 +29,7 @@ paths:
     get:
       operationId: listOpenaiConversations
       tags: [openai]
-      summary: List all conversations
+      summary: List conversations for authenticated user
       responses:
         "200":
           description: List of conversations
@@ -80,7 +79,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OpenaiError"
+                $ref: "#/components/schemas/ApiError"
     delete:
       operationId: deleteOpenaiConversation
       tags: [openai]
@@ -99,7 +98,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OpenaiError"
+                $ref: "#/components/schemas/ApiError"
   /openai/conversations/{id}/messages:
     get:
       operationId: listOpenaiMessages
@@ -123,7 +122,7 @@ paths:
     post:
       operationId: sendOpenaiMessage
       tags: [openai]
-      summary: Send a text message and receive a streaming text response
+      summary: Send a message and get streaming AI response
       parameters:
         - name: id
           in: path
@@ -138,9 +137,45 @@ paths:
               $ref: "#/components/schemas/OpenaiMessageInput"
       responses:
         "200":
-          description: SSE stream of assistant text chunks
+          description: SSE stream or history object
           content:
             text/event-stream: {}
+        "429":
+          description: Daily limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageLimitError"
+  /user/me:
+    get:
+      operationId: getMe
+      tags: [user]
+      summary: Get current user profile
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /user/usage:
+    get:
+      operationId: getUsage
+      tags: [user]
+      summary: Get today's message usage
+      responses:
+        "200":
+          description: Usage info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageInfo"
 components:
   schemas:
     HealthStatus:
@@ -148,22 +183,36 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    UsageLimitError:
+      type: object
+      properties:
+        error:
+          type: string
+        used:
+          type: integer
+        limit:
+          type: integer
+      required: [error, used, limit]
     OpenaiConversation:
       type: object
       properties:
         id:
           type: integer
+        userId:
+          type: string
         title:
           type: string
         createdAt:
           type: string
           format: date-time
-      required:
-        - id
-        - title
-        - createdAt
+      required: [id, userId, title, createdAt]
     OpenaiMessage:
       type: object
       properties:
@@ -178,19 +227,13 @@ components:
         createdAt:
           type: string
           format: date-time
-      required:
-        - id
-        - conversationId
-        - role
-        - content
-        - createdAt
+      required: [id, conversationId, role, content, createdAt]
     OpenaiConversationInput:
       type: object
       properties:
         title:
           type: string
-      required:
-        - title
+      required: [title]
     OpenaiMessageInput:
       type: object
       properties:
@@ -198,14 +241,14 @@ components:
           type: string
         model:
           type: string
-          description: AI model identifier selected by user
-      required:
-        - content
+      required: [content]
     OpenaiConversationWithMessages:
       type: object
       properties:
         id:
           type: integer
+        userId:
+          type: string
         title:
           type: string
         createdAt:
@@ -215,15 +258,23 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OpenaiMessage"
-      required:
-        - id
-        - title
-        - createdAt
-        - messages
-    OpenaiError:
+      required: [id, userId, title, createdAt, messages]
+    UserProfile:
       type: object
       properties:
-        error:
+        id:
           type: string
-      required:
-        - error
+        email:
+          type: string
+        name:
+          type: string
+          nullable: true
+      required: [id, email]
+    UsageInfo:
+      type: object
+      properties:
+        used:
+          type: integer
+        limit:
+          type: integer
+      required: [used, limit]

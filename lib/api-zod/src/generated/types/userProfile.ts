@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface OpenaiConversationInput {
-  title: string;
+export interface UserProfile {
+  id: string;
+  email: string;
+  name?: string | null;
 }

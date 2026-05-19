@@ -1,18 +1,16 @@
 {
   "version": 2,
-  "installCommand": "npm install -g pnpm && NODE_ENV=development pnpm install --no-frozen-lockfile",
-  "buildCommand": "NODE_ENV=production pnpm --filter @workspace/nixx-ai run build",
-  "outputDirectory": "artifacts/nixx-ai/dist",
-  "framework": null,
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm run typecheck:libs && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/nixx-ai run build",
+  "outputDirectory": "artifacts/nixx-ai/dist/public",
   "functions": {
     "api/index.ts": {
-      "maxDuration": 60
+      "maxDuration": 30,
+      "memory": 512
     }
   },
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index" }
-  ],
-  "env": {
-    "VERCEL": "1"
-  }
+    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/((?!api).*)", "destination": "/index.html" }
+  ]
 }
