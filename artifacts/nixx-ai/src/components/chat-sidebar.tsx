@@ -1,11 +1,12 @@
-import type { OpenaiConversation } from "@workspace/api-client-react";
+import React from "react";
+import { OpenaiConversation } from "@workspace/api-client-react";
 
 interface Model {
-  id: string; label: string; badge: string; icon: string; off: boolean;
-}
-
-interface UsageInfo {
-  used: number; limit: number;
+  id: string;
+  label: string;
+  badge: string;
+  icon: string;
+  off: boolean;
 }
 
 interface ChatSidebarProps {
@@ -13,19 +14,25 @@ interface ChatSidebarProps {
   activeId: number | null;
   selectedModel: string;
   models: Model[];
-  usage: UsageInfo | null;
   isCreating?: boolean;
   onSelect: (id: number) => void;
   onNewChat: () => void;
   onDelete: (id: number) => void;
   onClearChat: () => void;
   onSelectModel: (modelId: string) => void;
-  onSignOut: () => void;
 }
 
 export default function ChatSidebar({
-  conversations, activeId, selectedModel, models, usage, isCreating,
-  onSelect, onNewChat, onDelete, onClearChat, onSelectModel, onSignOut,
+  conversations,
+  activeId,
+  selectedModel,
+  models,
+  isCreating,
+  onSelect,
+  onNewChat,
+  onDelete,
+  onClearChat,
+  onSelectModel,
 }: ChatSidebarProps) {
   return (
     <>
@@ -40,58 +47,88 @@ export default function ChatSidebar({
       </button>
 
       {conversations.length > 0 && (
-        <div style={{ marginBottom: 6 }}>
-          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.08em", padding: "4px 4px 6px", textTransform: "uppercase" }}>Riwayat</div>
+        <div style={{ marginBottom: 10 }}>
           {conversations.map((conv) => (
             <button
               key={conv.id}
               className="nx-sidebar-btn"
               onClick={() => onSelect(conv.id)}
-              style={{ fontWeight: activeId === conv.id ? 700 : 400, fontSize: "0.8rem", marginBottom: 4, paddingRight: 36, position: "relative" }}
+              style={{
+                fontWeight: activeId === conv.id ? 700 : 400,
+                fontSize: "0.82rem",
+                marginBottom: 4,
+                position: "relative",
+                paddingRight: 40,
+              }}
             >
               <span>💬</span>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{conv.title}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                {conv.title}
+              </span>
               <span
                 role="button"
-                onClick={(e) => { e.stopPropagation(); if (confirm("Hapus?")) onDelete(conv.id); }}
-                style={{ position: "absolute", right: 10, fontSize: 12, opacity: 0.5, cursor: "pointer", padding: "2px 4px" }}
-              >🗑</span>
+                onClick={(e) => { e.stopPropagation(); if (confirm("Hapus percakapan ini?")) onDelete(conv.id); }}
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  fontSize: 12,
+                  opacity: 0.6,
+                  cursor: "pointer",
+                  padding: "2px 4px",
+                }}
+                title="Hapus"
+              >
+                🗑
+              </span>
             </button>
           ))}
         </div>
       )}
 
-      {usage && (
-        <div style={{ background: "var(--secondary-bg)", border: "1.5px solid var(--border-color)", borderRadius: 10, padding: "10px 12px", marginBottom: 4 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", fontWeight: 600, marginBottom: 6 }}>
-            <span style={{ color: "var(--text-secondary)" }}>Pesan hari ini</span>
-            <span style={{ color: usage.used >= usage.limit ? "var(--danger-color)" : "var(--accent)" }}>{usage.used}/{usage.limit}</span>
-          </div>
-          <div style={{ height: 5, background: "var(--border-color)", borderRadius: 4, overflow: "hidden" }}>
-            <div style={{ height: "100%", background: usage.used >= usage.limit ? "var(--danger-color)" : "var(--gradient)", width: `${Math.min(100, (usage.used / usage.limit) * 100)}%`, borderRadius: 4, transition: "width 0.3s" }} />
-          </div>
-        </div>
-      )}
-
-      <button className="nx-sidebar-btn" onClick={() => window.location.href = "/profile"}>
-        <span>👤</span> PROFIL SAYA
-      </button>
-      <button className="nx-sidebar-btn" onClick={() => window.open("https://t.me/nixsukakamu", "_blank")}>
-        <span>💫</span> COMMUNITY
-      </button>
-      <button className="nx-sidebar-btn nx-clear-btn" onClick={onClearChat}>
-        <span>🗑️</span> HAPUS CHAT INI
-      </button>
       <button
         className="nx-sidebar-btn"
-        onClick={onSignOut}
-        style={{ color: "var(--danger-color)", borderColor: "var(--danger-color)" }}
+        onClick={() => alert("Developer: Nixx Team\nContact: t.me/nixsukakamu")}
       >
-        <span>🚪</span> KELUAR
+        <span>👤</span>
+        DEVELOPER 🚀
+      </button>
+
+      <button
+        className="nx-sidebar-btn"
+        onClick={() => window.open("https://list.unix.biz.id", "_blank")}
+      >
+        <span>📚</span>
+        STORE MENU 🛍️
+      </button>
+
+      <button
+        className="nx-sidebar-btn"
+        onClick={() => window.open("https://t.me/nixsukakamu", "_blank")}
+      >
+        <span>💫</span>
+        COMMUNITY 💫
+      </button>
+
+      <button
+        className="nx-sidebar-btn"
+        onClick={() => window.open("https://iili.io/f7GFZcF.png", "_blank")}
+      >
+        <img
+          src="https://iili.io/f7GOsse.jpg"
+          alt="QRIS"
+          style={{ width: 20, borderRadius: 4, objectFit: "cover" }}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        />
+        SAWERIA ✨
+      </button>
+
+      <button className="nx-sidebar-btn nx-clear-btn" onClick={onClearChat}>
+        <span>🗑️</span>
+        CLEAR CHAT 🗑️
       </button>
 
       <div className="nx-model-selector">
-        <span className="nx-model-label">PILIH MODEL AI:</span>
+        <span className="nx-model-label">SELECT AI MODEL:</span>
         {models.map((model) => (
           <button
             key={model.id}
