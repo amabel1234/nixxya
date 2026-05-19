@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/context/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListOpenaiConversations,
@@ -21,7 +21,7 @@ function formatTime(dateStr: string) {
 }
 
 export default function DashboardPage() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [activeConvId, setActiveConvId] = useState<number | null>(null);
   const [selectedModelId, setSelectedModelId] = useState("deepseekv3");
@@ -57,7 +57,6 @@ export default function DashboardPage() {
 
   useEffect(() => { scrollToBottom(); }, [convData?.messages, streamingContent, pendingUserMsg]);
 
-  // Auto-resize textarea
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = "auto";
@@ -161,7 +160,6 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* Fixed controls */}
       <button className="nx-menu-toggle" onClick={() => setSidebarOpen(true)} title="Menu">☰</button>
       <button
         className="nx-theme-toggle"
@@ -169,10 +167,8 @@ export default function DashboardPage() {
         title="Ganti tema"
       >{theme === "dark" ? "☀️" : "🌙"}</button>
 
-      {/* Sidebar overlay */}
       <div className={`nx-sidebar-overlay ${sidebarOpen ? "active" : ""}`} onClick={() => setSidebarOpen(false)} />
 
-      {/* Sidebar */}
       <ConversationSidebar
         conversations={conversations}
         activeId={activeConvId}
@@ -183,14 +179,11 @@ export default function DashboardPage() {
         selectedModelId={selectedModelId}
         onModelChange={(id) => { setSelectedModelId(id); setSidebarOpen(false); }}
         open={sidebarOpen}
-        userImageUrl={user?.imageUrl}
-        userName={user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] ?? "User"}
+        userName={user?.username ?? user?.email?.split("@")[0] ?? "User"}
         basePath={basePath}
       />
 
-      {/* Main card */}
       <main className="nx-main">
-        {/* Header */}
         <div className="nx-header">
           <div className="nx-logo-container">
             <div style={{ width:42, height:42, borderRadius:"50%", background:"rgba(255,255,255,0.2)", border:"2.5px solid rgba(255,255,255,0.5)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>🧠</div>
@@ -205,7 +198,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Content */}
         <div className="nx-chat-container">
           {!hasMessages ? (
             <WelcomeScreen onPrompt={(text) => { setInput(text); handleSend(text); }} />
@@ -231,7 +223,6 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Input always at bottom */}
           <div className="nx-input-container">
             <textarea
               ref={inputRef}
