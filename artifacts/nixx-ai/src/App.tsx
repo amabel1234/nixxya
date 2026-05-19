@@ -31,12 +31,10 @@ const appearance = {
     rootBox: "w-full flex justify-center",
     card: "!shadow-none !border-0",
     formButtonPrimary: "font-semibold",
-    // Sembunyikan loading spinner bawaan Clerk — kita punya sendiri
     spinner: "hidden",
   },
 };
 
-// Skeleton saat Clerk JS masih loading
 function ClerkSkeleton() {
   return (
     <div
@@ -82,12 +80,7 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Switch>
-      <Route path="/">
-        <>
-          <SignedIn><Redirect to="/dashboard" /></SignedIn>
-          <SignedOut><LandingPage /></SignedOut>
-        </>
-      </Route>
+      {/* Rute spesifik harus LEBIH DULU dari "/" agar tidak di-prefix-match */}
       <Route path="/sign-in">
         <AuthWrapper>
           <ClerkLoading><ClerkSkeleton /></ClerkLoading>
@@ -118,6 +111,12 @@ function AppRoutes() {
         <>
           <SignedIn><DashboardPage /></SignedIn>
           <SignedOut><Redirect to="/" /></SignedOut>
+        </>
+      </Route>
+      <Route path="/">
+        <>
+          <SignedIn><Redirect to="/dashboard" /></SignedIn>
+          <SignedOut><LandingPage /></SignedOut>
         </>
       </Route>
       <Route component={NotFound} />
