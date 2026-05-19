@@ -250,15 +250,15 @@ export default function DashboardContent() {
         </div>
 
         {/* Chat area */}
-        <ScrollArea className="flex-1" ref={scrollRef}>
-          {showWelcome ? (
-            <div className="min-h-full flex items-center justify-center p-4">
-              <WelcomeScreen
-                onPrompt={handleSendMessage}
-                disabled={isStreaming}
-              />
-            </div>
-          ) : (
+        {showWelcome ? (
+          <div className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
+            <WelcomeScreen
+              onPrompt={handleSendMessage}
+              disabled={isStreaming}
+            />
+          </div>
+        ) : (
+          <ScrollArea className="flex-1" ref={scrollRef}>
             <div className="py-4">
               <MessageList
                 messages={displayMessages}
@@ -267,8 +267,8 @@ export default function DashboardContent() {
                 userInitials={initials}
               />
             </div>
-          )}
-        </ScrollArea>
+          </ScrollArea>
+        )}
 
         <ChatInput onSend={handleSendMessage} disabled={isStreaming} />
       </main>

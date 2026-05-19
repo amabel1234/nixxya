@@ -59,6 +59,9 @@ export function WelcomeScreen({ onPrompt, disabled }: WelcomeScreenProps) {
                   ? "1px solid rgba(168, 85, 247, 0.6)"
                   : "1px solid hsl(248, 25%, 20%)",
                 transform: isActive ? "scale(0.98)" : undefined,
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
+                userSelect: "none",
               }}
             >
               {isActive ? (
