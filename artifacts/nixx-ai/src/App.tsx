@@ -1,68 +1,74 @@
-import React from "react";
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import React, { useState, useEffect, createContext, useContext } from "react";
+import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
-import LandingPage from "@/pages/LandingPage";
-import DashboardPage from "@/pages/DashboardPage";
-import AuthPage from "@/pages/AuthPage";
+import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
+import ChatPage from "@/pages/chat";
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  },
 });
 
-const basePath = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+interface ThemeCtx {
+  isDark: boolean;
+  toggle: () => void;
+}
 
-function Spinner() {
+export const ThemeContext = createContext<ThemeCtx>({ isDark: false, toggle: () => {} });
+
+export function useTheme() {
+  return useContext(ThemeContext);
+}
+
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [isDark, setIsDark] = useState(() => {
+    return localStorage.getItem("nx-theme") === "dark";
+  });
+
+  useEffect(() => {
+    const html = document.documentElement;
+    if (isDark) {
+      html.setAttribute("data-theme", "dark");
+    } else {
+      html.removeAttribute("data-theme");
+    }
+    localStorage.setItem("nx-theme", isDark ? "dark" : "light");
+  }, [isDark]);
+
+  const toggle = () => setIsDark((v) => !v);
+
   return (
-    <div style={{
-      minHeight: "100dvh", display: "flex", alignItems: "center",
-      justifyContent: "center", background: "hsl(248, 30%, 6%)",
-      flexDirection: "column", gap: "1rem",
-    }}>
-      <div style={{
-        width: 48, height: 48, borderRadius: "50%",
-        border: "3px solid rgba(168,85,247,0.2)",
-        borderTopColor: "#a855f7",
-        animation: "spin .7s linear infinite",
-      }} />
-      <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
-      <p style={{ color: "rgba(168,85,247,0.7)", fontSize: 14, margin: 0 }}>Memuat...</p>
-    </div>
+    <ThemeContext.Provider value={{ isDark, toggle }}>
+      {children}
+    </ThemeContext.Provider>
   );
 }
 
-function AppRoutes() {
-  const { user, isLoading } = useAuth();
-  if (isLoading) return <Spinner />;
-
+function Router() {
   return (
     <Switch>
-      <Route path="/sign-in">
-        {user ? <Redirect to="/dashboard" /> : <AuthPage defaultMode="login" />}
-      </Route>
-      <Route path="/sign-up">
-        {user ? <Redirect to="/dashboard" /> : <AuthPage defaultMode="register" />}
-      </Route>
-      <Route path="/dashboard">
-        {user ? <DashboardPage /> : <Redirect to="/sign-in" />}
-      </Route>
-      <Route path="/">
-        {user ? <Redirect to="/dashboard" /> : <LandingPage />}
-      </Route>
+      <Route path="/" component={ChatPage} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-export default function App() {
+function App() {
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <WouterRouter base={basePath}>
-          <AppRoutes />
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <Router />
         </WouterRouter>
-      </QueryClientProvider>
-    </AuthProvider>
+        <Toaster />
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
+
+export default App;
