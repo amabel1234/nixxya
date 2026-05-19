@@ -1,5 +1,4 @@
 import React from "react";
-  import { useUser, useClerk } from "@clerk/react";
   import type { LocalConversation } from "@/pages/chat";
 
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -24,8 +23,6 @@ import React from "react";
     conversations, activeId, selectedModel, models,
     onSelect, onNewChat, onDelete, onClearChat, onSelectModel,
   }: ChatSidebarProps) {
-    const { user } = useUser();
-    const { signOut } = useClerk();
 
     return (
       <>
@@ -35,12 +32,12 @@ import React from "react";
             onError={e => { (e.target as HTMLImageElement).style.display="none"; }} />
           <div>
             <div style={{ fontWeight:800, fontSize:"1.05rem", color:"var(--nx-text)" }}>Nixx AI</div>
-            <div style={{ fontSize:".68rem", color:"var(--nx-text-muted)" }}>26 AI Models · Free</div>
+            <div style={{ fontSize:".68rem", color:"var(--nx-text-muted)" }}>26 AI Models · Free ✨</div>
           </div>
         </div>
 
         {/* New Chat */}
-        <button className="nx-sidebar-btn" onClick={onNewChat}>
+        <button className="nx-sidebar-btn" onClick={onNewChat} data-testid="button-new-chat">
           <span>✏️</span> PERCAKAPAN BARU
         </button>
 
@@ -62,7 +59,7 @@ import React from "react";
                   {conv.title}
                 </span>
                 <span role="button"
-                  onClick={e => { e.stopPropagation(); if (confirm("Hapus?")) onDelete(conv.id); }}
+                  onClick={e => { e.stopPropagation(); if (confirm("Hapus percakapan ini?")) onDelete(conv.id); }}
                   style={{ position:"absolute", right:10, fontSize:11, opacity:.55, cursor:"pointer", padding:"2px 4px" }}
                   title="Hapus">🗑</span>
               </button>
@@ -92,37 +89,14 @@ import React from "react";
           {models.map(model => (
             <button key={model.id}
               className={`nx-model-option${model.id===selectedModel?" active":""}${model.off?" off":""}`}
-              onClick={() => !model.off && onSelectModel(model.id)}>
+              onClick={() => !model.off && onSelectModel(model.id)}
+              data-testid={`button-model-${model.id}`}>
               <span>{model.icon}</span>
               {model.label}
               <span className="nx-model-badge">{model.badge}</span>
             </button>
           ))}
         </div>
-
-        {/* User Info */}
-        {user && (
-          <div style={{ marginTop:16, paddingTop:12, borderTop:"1px solid var(--nx-border)" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-              {user.imageUrl
-                ? <img src={user.imageUrl} alt="" style={{ width:32, height:32, borderRadius:"50%", objectFit:"cover" }} />
-                : <div style={{ width:32, height:32, borderRadius:"50%", background:"var(--nx-accent)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:700 }}>
-                    {user.firstName?.charAt(0) ?? "U"}
-                  </div>}
-              <div style={{ flex:1, overflow:"hidden" }}>
-                <div style={{ fontSize:".8rem", fontWeight:600, color:"var(--nx-text)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {user.fullName ?? user.emailAddresses[0]?.emailAddress}
-                </div>
-                <div style={{ fontSize:".68rem", color:"var(--nx-text-muted)" }}>Free Plan</div>
-              </div>
-            </div>
-            <button className="nx-sidebar-btn nx-clear-btn"
-              onClick={() => signOut({ redirectUrl: basePath || "/" })}
-              style={{ fontSize:".8rem" }}>
-              <span>🚪</span> KELUAR
-            </button>
-          </div>
-        )}
       </>
     );
   }
