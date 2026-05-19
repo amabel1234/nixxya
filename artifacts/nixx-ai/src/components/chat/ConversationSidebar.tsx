@@ -1,6 +1,6 @@
 import React from "react";
 import { format } from "date-fns";
-import { useClerk } from "@clerk/clerk-react";
+import { useAuth } from "@/context/AuthContext";
 import { AI_MODELS } from "@/lib/models";
 import type { OpenaiConversation } from "@workspace/api-client-react";
 
@@ -28,13 +28,12 @@ const MENU_ITEMS = [
 
 export function ConversationSidebar({
   conversations, activeId, onSelect, onNew, onDelete, onClearChat,
-  selectedModelId, onModelChange, open, userImageUrl, userName, basePath,
+  selectedModelId, onModelChange, open, userImageUrl, userName,
 }: ConversationSidebarProps) {
-  const { signOut } = useClerk();
+  const { logout } = useAuth();
 
   return (
     <aside className={`nx-sidebar ${open ? "active" : ""}`}>
-      {/* User info at top (fixed inside sidebar) */}
       <div className="nx-sidebar-user">
         <div className="nx-sidebar-avatar">
           {userImageUrl
@@ -47,12 +46,10 @@ export function ConversationSidebar({
         </div>
       </div>
 
-      {/* New chat */}
       <button className="nx-sidebar-btn" onClick={onNew}>
         ✏️ PERCAKAPAN BARU
       </button>
 
-      {/* Conversations */}
       {conversations.length > 0 && (
         <>
           <div className="nx-sidebar-section">Percakapan</div>
@@ -78,7 +75,6 @@ export function ConversationSidebar({
         </>
       )}
 
-      {/* Menu */}
       <div className="nx-sidebar-section">Menu</div>
       {MENU_ITEMS.map((item) => (
         <button key={item.label} className="nx-sidebar-btn" onClick={item.action}>
@@ -90,7 +86,6 @@ export function ConversationSidebar({
         🗑️ CLEAR CHAT
       </button>
 
-      {/* Model selector */}
       <div className="nx-model-selector">
         <span className="nx-model-label">Select AI Model:</span>
         {AI_MODELS.map((model) => (
@@ -106,12 +101,8 @@ export function ConversationSidebar({
         ))}
       </div>
 
-      {/* Sign out */}
       <div style={{ marginTop: 12 }}>
-        <button
-          className="nx-sidebar-btn nx-clear-btn"
-          onClick={() => signOut({ redirectUrl: basePath || "/" })}
-        >
+        <button className="nx-sidebar-btn nx-clear-btn" onClick={logout}>
           [→ Keluar
         </button>
       </div>
