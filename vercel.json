@@ -1,28 +1,6 @@
 {
-  "version": 2,
+  "buildCommand": "pnpm --filter @workspace/web run build",
+  "outputDirectory": "artifacts/web/dist",
   "installCommand": "pnpm install --no-frozen-lockfile",
-  "buildCommand": "pnpm --filter @workspace/api-spec run codegen && pnpm --filter @workspace/nixx-ai run build",
-  "outputDirectory": "artifacts/nixx-ai/dist/public",
-  "framework": null,
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 30
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
-  "build": {
-    "env": {
-      "PORT": "3000",
-      "BASE_PATH": "/"
-    }
-  }
+  "framework": "vite"
 }
