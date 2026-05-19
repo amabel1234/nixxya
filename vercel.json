@@ -1,6 +1,9 @@
 {
-  "buildCommand": "pnpm --filter @workspace/web run build",
-  "outputDirectory": "artifacts/web/dist",
-  "installCommand": "pnpm install --no-frozen-lockfile",
-  "framework": "vite"
+  "version": 2,
+  "buildCommand": "pnpm install --no-frozen-lockfile && pnpm --filter @workspace/nixx-ai run build",
+  "outputDirectory": "artifacts/nixx-ai/dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index" }
+  ]
 }

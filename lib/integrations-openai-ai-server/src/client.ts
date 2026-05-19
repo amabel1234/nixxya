@@ -1,50 +1,22 @@
 import OpenAI from "openai";
 
-function createClient(): { client: OpenAI; model: string; useStreaming: boolean } {
-  if (
-    process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
-    process.env.AI_INTEGRATIONS_OPENAI_API_KEY
-  ) {
-    return {
-      client: new OpenAI({
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-      }),
-      model: "gpt-4o-mini",
-      useStreaming: true,
-    };
-  }
+const hasReplitIntegration =
+  !!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
+  !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
 
-  if (process.env.OPENAI_API_KEY) {
-    return {
-      client: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),
-      model: "gpt-4o-mini",
-      useStreaming: true,
-    };
-  }
+const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
 
-  if (process.env.GITHUB_TOKEN) {
-    return {
-      client: new OpenAI({
-        apiKey: process.env.GITHUB_TOKEN,
-        baseURL: "https://models.inference.ai.azure.com",
-      }),
-      model: "gpt-4o-mini",
-      useStreaming: true,
-    };
-  }
-
-  return {
-    client: new OpenAI({
-      apiKey: "dummy",
-      baseURL: "https://text.pollinations.ai/openai",
-    }),
-    model: "gpt-oss-20b",
-    useStreaming: false,
-  };
+if (!hasReplitIntegration && !hasOpenAIKey) {
+  throw new Error(
+    "Butuh salah satu: AI_INTEGRATIONS_OPENAI_BASE_URL + AI_INTEGRATIONS_OPENAI_API_KEY (Replit), atau OPENAI_API_KEY (Vercel/lainnya).",
+  );
 }
 
-const { client, model, useStreaming } = createClient();
-export const openai = client;
-export const AI_MODEL = model;
-export const STREAMING_ENABLED = useStreaming;
+export const openai = hasReplitIntegration
+  ? new OpenAI({
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    })
+  : new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
