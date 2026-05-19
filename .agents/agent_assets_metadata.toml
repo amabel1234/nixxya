@@ -18,3 +18,9 @@ id = "2GexGC_KDNEJHLkiW_C4J"
 uri = "file://nixx-ai-fixed.tar.gz"
 type = "unspecified"
 title = "Nixx AI — Fixed (vercel.json sudah benar)"
+
+[[outputs]]
+id = "5CyE44CGBK0Q1PmnW5c2l"
+uri = "file://nixx-ai-v3.tar.gz"
+type = "unspecified"
+title = "Nixx AI v3 — Tombol sudah diperbaiki + Vercel config benar"
