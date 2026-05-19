@@ -82,10 +82,13 @@ export function ConversationSidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[85vw] max-w-[320px] flex flex-col transition-transform duration-300 md:static md:translate-x-0 md:z-auto md:w-[280px] md:max-w-none md:shrink-0 ${
-          open ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-50 w-[85vw] max-w-[320px] flex flex-col transition-transform duration-300 md:static md:translate-x-0 md:z-auto md:w-[280px] md:max-w-none md:shrink-0 md:pointer-events-auto md:visible ${
+          open ? "translate-x-0 pointer-events-auto visible" : "-translate-x-full pointer-events-none invisible"
         }`}
-        style={{ background: "hsl(248, 32%, 8%)", borderRight: "1px solid hsl(248, 25%, 14%)" }}
+        style={{
+          background: "hsl(248, 32%, 8%)",
+          borderRight: "1px solid hsl(248, 25%, 14%)",
+        }}
       >
         {/* Header */}
         <div
