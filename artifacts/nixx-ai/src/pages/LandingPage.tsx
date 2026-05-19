@@ -1,5 +1,4 @@
 import React from "react";
-import { useClerk } from "@clerk/clerk-react";
 
 const FEATURES = [
   { emoji: "🚀", title: "26 Model AI Gratis", desc: "Nixx AI, Grok, Gemini, Llama, GPT — semua tersedia tanpa biaya." },
@@ -9,8 +8,6 @@ const FEATURES = [
 ];
 
 export default function LandingPage() {
-  const { openSignIn, openSignUp } = useClerk();
-
   return (
     <div className="nx-landing">
       {/* Header */}
@@ -20,8 +17,8 @@ export default function LandingPage() {
           <span className="nx-landing-logo-text">Nixx AI</span>
         </div>
         <nav className="nx-landing-nav">
-          <button className="nx-landing-btn-outline" onClick={() => openSignIn()}>Masuk</button>
-          <button className="nx-landing-btn-solid" onClick={() => openSignUp()}>Daftar</button>
+          <a href="/sign-in" className="nx-landing-btn-outline">Masuk</a>
+          <a href="/sign-up" className="nx-landing-btn-solid">Daftar</a>
         </nav>
       </header>
 
@@ -37,13 +34,13 @@ export default function LandingPage() {
         </p>
         <p className="nx-landing-free">✨ Tanpa biaya · Tanpa iklan · Selamanya gratis</p>
 
-        <button className="nx-landing-cta" onClick={() => openSignUp()}>
+        <a href="/sign-up" className="nx-landing-cta">
           ✨ Mulai Chat Sekarang
-        </button>
+        </a>
 
         <p className="nx-landing-signin">
           Sudah punya akun?{" "}
-          <button onClick={() => openSignIn()}>Masuk di sini</button>
+          <a href="/sign-in">Masuk di sini</a>
         </p>
 
         {/* Features */}
