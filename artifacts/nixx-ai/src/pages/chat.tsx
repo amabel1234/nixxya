@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useTheme } from "@/App";
+import { useTheme, useAuth } from "@/App";
 
 const MODELS = [
   { id: "deepseekv3", label: "Nixx AI",       badge: "Fast",      icon: "🧠", off: false },
@@ -350,6 +350,7 @@ const LIGHT_CSS = `
 
 export default function ChatPage() {
   const { isDark, toggle: toggleTheme } = useTheme();
+  const { user, signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen]   = useState(false);
   const [conversations, setConversations] = useState<LocalConversation[]>([]);
   const [activeConvId, setActiveConvId]   = useState<string | null>(null);
@@ -648,6 +649,23 @@ export default function ChatPage() {
                     </span>
                   </button>
                 ))}
+              </>
+            )}
+
+            {/* User Info + Logout */}
+            {user && (
+              <>
+                <div className="nx-sb-section" style={{ marginTop:12 }}>Akun</div>
+                <div style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"rgba(124,58,237,.1)",borderRadius:12,marginBottom:4 }}>
+                  <div style={{ width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#7c3aed,#ec4899)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:".9rem",fontWeight:800,color:"#fff",flexShrink:0 }}>
+                    {user.avatar}
+                  </div>
+                  <div style={{ flex:1,overflow:"hidden" }}>
+                    <div style={{ fontSize:".8rem",fontWeight:700,color:"#c4b5fd",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{user.name}</div>
+                    <div style={{ fontSize:".68rem",color:"rgba(255,255,255,.38)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{user.email}</div>
+                  </div>
+                </div>
+                <button className="nx-sb-btn danger" onClick={() => { if (confirm("Keluar dari Nixx AI?")) signOut(); }}>🚪 &nbsp;Keluar</button>
               </>
             )}
 
