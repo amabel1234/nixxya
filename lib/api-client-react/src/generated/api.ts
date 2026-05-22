@@ -50,6 +50,7 @@ export const getHealthCheckUrl = () => {
 }
 
 /**
+ * Returns server health status
  * @summary Health check
  */
 export const healthCheck = async ( options?: RequestInit): Promise<HealthStatus> => {
