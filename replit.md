@@ -1,6 +1,6 @@
-# Nixx AI
+# [Project name]
 
-Asisten AI chat berbasis web dengan dukungan 26 model AI, antarmuka dalam Bahasa Indonesia.
+_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
 
 ## Run & Operate
 
@@ -14,49 +14,31 @@ Asisten AI chat berbasis web dengan dukungan 26 model AI, antarmuka dalam Bahasa
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- Frontend: React + Vite + TailwindCSS + shadcn/ui (artifact: `nixx-ai`)
-- API: Express 5 (artifact: `api-server`)
-- DB: PostgreSQL + Drizzle ORM (`conversations`, `messages` tables)
-- AI: Replit AI Integrations → OpenAI (`@workspace/integrations-openai-ai-server`)
+- API: Express 5
+- DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
 
 ## Where things live
 
-- `artifacts/nixx-ai/` — React + Vite frontend
-- `artifacts/api-server/` — Express 5 backend
-- `lib/api-spec/openapi.yaml` — OpenAPI spec (source of truth for API contract)
-- `lib/db/src/schema/` — Drizzle ORM schema (`conversations.ts`, `messages.ts`)
-- `lib/integrations-openai-ai-server/` — OpenAI SDK client (Replit AI Integrations)
-- `api/index.ts` — Vercel serverless entry point
-- `vercel.json` — Vercel deployment config
+_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
 
 ## Architecture decisions
 
-- Contract-first API: OpenAPI spec → Orval codegen → React Query hooks + Zod schemas
-- SSE streaming for chat responses (disabled on Vercel due to SSE limitations)
-- Dual AI key support: `AI_INTEGRATIONS_OPENAI_BASE_URL`+`AI_INTEGRATIONS_OPENAI_API_KEY` (Replit) OR `OPENAI_API_KEY` (Vercel/other)
-- All routes prefixed with `/api/` for proxy routing compatibility
+_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
 
 ## Product
 
-- Chat UI dalam Bahasa Indonesia dengan 26 pilihan model AI
-- Sidebar untuk manajemen percakapan (buat baru, pilih, hapus)
-- Streaming respons AI real-time via Server-Sent Events
-- Dark/light mode toggle
-- Siap deploy ke Vercel
+_Describe the high-level user-facing capabilities of this app once they exist._
 
 ## User preferences
 
-- Bahasa UI: Indonesia
-- Target deployment: Vercel (menggunakan `vercel.json` + `api/index.ts`)
+_Populate as you build — explicit user instructions worth remembering across sessions._
 
 ## Gotchas
 
-- Vercel tidak support SSE; gunakan JSON response untuk produksi Vercel
-- Selalu jalankan `pnpm --filter @workspace/api-spec run codegen` setelah mengubah `openapi.yaml`
-- Selalu jalankan `pnpm --filter @workspace/db run push` setelah mengubah schema DB
+_Populate as you build — sharp edges, "always run X before Y" rules._
 
 ## Pointers
 
