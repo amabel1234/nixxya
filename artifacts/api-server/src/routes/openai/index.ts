@@ -154,7 +154,7 @@ import { Router, type IRouter } from "express";
       : "Maaf, server AI sedang sibuk. Coba lagi sebentar ya! 😊";
 
     // Stream per-kata dengan delay natural
-    const tokens = responseText.split(/(s+)/);
+    const tokens = responseText.split(/(\s+)/);
     for (const token of tokens) {
       if (!token) continue;
       send({ content: token });
