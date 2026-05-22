@@ -47,11 +47,3 @@ Thumbs.db
 # Replit
 .cache/
 .local/
-
-# Environment secrets
-.env
-.env.local
-.env.*.local
-
-# Attached assets (user uploads)
-attached_assets/
