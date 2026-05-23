@@ -70,51 +70,82 @@ async function fetchWithTimeout(url, opts, ms) {
 }
 
 // ─── Pollinations AI (tanpa API key, gratis) ──────────────────────────────────
-async function tryPollinations(chatMessages) {
-  const seed = Math.floor(Math.random() * 999999);
-  const models = ["openai-large", "openai", "mistral", "llama"];
+// CATATAN: Hanya model "openai" (gpt-oss-20b) yang aktif di Pollinations.
+// Model lain (openai-large, mistral, llama) sudah deprecated/tidak tersedia.
 
-  for (const polModel of models) {
+async function tryGetEndpoint(chatMessages) {
+  const seed = Math.floor(Math.random() * 999999);
+  const lastUser = [...chatMessages].reverse().find(m => m.role === "user")?.content ?? "halo";
+  const systemContent = chatMessages.find(m => m.role === "system")?.content ?? "";
+
+  // Sertakan konteks percakapan sebelumnya di system prompt
+  const history = chatMessages
+    .filter(m => m.role !== "system")
+    .slice(-7, -1)
+    .map(m => `${m.role === "user" ? "User" : "Nixx AI"}: ${m.content.slice(0, 300)}`)
+    .join("\n");
+
+  const fullSystem = history
+    ? `${systemContent}\n\nKonteks percakapan sebelumnya:\n${history}`
+    : systemContent;
+
+  const encoded = encodeURIComponent(lastUser.slice(0, 800));
+  const sysEncoded = encodeURIComponent(fullSystem.slice(0, 1000));
+  const url = `https://text.pollinations.ai/${encoded}?model=openai&seed=${seed}&system=${sysEncoded}`;
+
+  const res = await fetchWithTimeout(url, {
+    method: "GET",
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; NixxAI/1.0)" },
+  }, 25000);
+
+  if (!res.ok) throw new Error(`GET HTTP ${res.status}`);
+  const text = await res.text();
+  if (!text.trim()) throw new Error("Empty GET response");
+  return text.trim();
+}
+
+async function tryPostEndpoint(chatMessages) {
+  const seed = Math.floor(Math.random() * 999999);
+  const res = await fetchWithTimeout(
+    "https://text.pollinations.ai/openai",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "openai",
+        messages: chatMessages,
+        stream: false,
+        seed,
+        max_tokens: 2048,
+      }),
+    },
+    25000,
+  );
+  if (!res.ok) throw new Error(`POST HTTP ${res.status}`);
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content ?? "";
+  if (!text.trim()) throw new Error("Empty POST response");
+  return text.trim();
+}
+
+async function tryPollinations(chatMessages) {
+  // Strategy: GET endpoint dulu (proven lebih reliable), fallback ke POST
+  for (let i = 0; i < 3; i++) {
     try {
-      const res = await fetchWithTimeout(
-        "https://text.pollinations.ai/openai",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: polModel,
-            messages: chatMessages,
-            stream: false,
-            seed,
-            private: true,
-          }),
-        },
-        25000,
-      );
-      if (!res.ok) continue;
-      const data = await res.json();
-      const text = data.choices?.[0]?.message?.content ?? "";
-      if (text.trim()) return text;
-    } catch {
-      /* coba model berikutnya */
-    }
+      const text = await tryGetEndpoint(chatMessages);
+      if (text) return text;
+    } catch { /* coba lagi */ }
+    if (i < 2) await new Promise(r => setTimeout(r, 1500));
   }
 
-  // Fallback: endpoint teks langsung
-  try {
-    const lastUser = [...chatMessages].reverse().find(m => m.role === "user")?.content ?? "halo";
-    const encoded = encodeURIComponent(lastUser.slice(0, 400));
-    const sysEncoded = encodeURIComponent(chatMessages[0]?.content ?? "");
-    const res = await fetchWithTimeout(
-      `https://text.pollinations.ai/${encoded}?model=openai-large&seed=${seed}&private=true&system=${sysEncoded}`,
-      { method: "GET" },
-      20000,
-    );
-    if (res.ok) {
-      const text = await res.text();
-      if (text.trim()) return text;
-    }
-  } catch { /* noop */ }
+  // Fallback ke POST jika GET gagal 3x
+  for (let i = 0; i < 2; i++) {
+    try {
+      const text = await tryPostEndpoint(chatMessages);
+      if (text) return text;
+    } catch { /* coba lagi */ }
+    if (i < 1) await new Promise(r => setTimeout(r, 2000));
+  }
 
   return "";
 }
@@ -156,12 +187,10 @@ app.post("/api/openai/chat", async (req, res) => {
       ? cleanResponse(rawText)
       : "Maaf, server AI sedang sibuk. Coba lagi sebentar ya! 😊";
 
-    // Stream per-kata dengan delay natural
-    const tokens = responseText.split(/(\s+)/);
+    // Stream token ke client tanpa delay
+    const tokens = responseText.match(/[\s\S]{1,6}/g) ?? [responseText];
     for (const token of tokens) {
-      if (!token) continue;
       send({ content: token });
-      await new Promise(r => setTimeout(r, 10));
     }
 
     send({ done: true });
