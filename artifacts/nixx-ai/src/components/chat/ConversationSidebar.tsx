@@ -23,7 +23,7 @@ const MENU_ITEMS = [
   { emoji: "👨‍💻", label: "DEVELOPER 🚀", action: () => alert("Developer: Nixx Team\nContact: t.me/nixsukakamu") },
   { emoji: "🏪", label: "STORE MENU 🛍️", action: () => window.open("www.privatedomain.my.id", "_blank") },
   { emoji: "👥", label: "COMMUNITY 🌐", action: () => window.open("https://t.me/nixsukakamu", "_blank") },
-  { emoji: "💖", label: "SAWERIA ✨", action: () => window.open("nixx-donation.vercel.app", "_blank") },
+  { emoji: "💖", label: "SAWERIA ✨", action: () => window.open("https://nixx-donation.vercel.app/nixxteam", "_blank") },
 ];
 
 export function ConversationSidebar({
