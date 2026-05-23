@@ -133,6 +133,74 @@ export default function DashboardPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+
+  const handleEditStart = useCallback((id: string, content: string) => {
+    setEditingId(id);
+    setEditText(content);
+  }, []);
+
+  const handleEditCancel = useCallback(() => {
+    setEditingId(null);
+    setEditText("");
+  }, []);
+
+  const handleEditSave = useCallback(async (msgId: string) => {
+    if (!editText.trim() || !activeConvId || isStreaming) return;
+
+    const conv = conversations.find(c => c.id === activeConvId);
+    if (!conv) return;
+
+    const msgIdx = conv.messages.findIndex(m => m.id === msgId);
+    if (msgIdx === -1) return;
+
+    const updatedMsg: LocalMessage = {
+      ...conv.messages[msgIdx],
+      content: editText.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    const messagesUpToEdit = [...conv.messages.slice(0, msgIdx), updatedMsg];
+
+    setConversations(prev => prev.map(c =>
+      c.id === activeConvId ? { ...c, messages: messagesUpToEdit } : c
+    ));
+    setEditingId(null);
+    setEditText("");
+    setIsStreaming(true);
+    setStreamingContent("");
+
+    const apiHistory = messagesUpToEdit.map(m => ({ role: m.role, content: m.content }));
+    let fullResponse = "";
+
+    try {
+      const historyWithoutLast = apiHistory.slice(0, -1);
+      fullResponse = await callPollinationsDirect(editText.trim(), historyWithoutLast, getModelById(selectedModelId).actualModel);
+      for (let i = 0; i < fullResponse.length; i += 4) {
+        setStreamingContent(s => s + fullResponse.slice(i, i + 4));
+        await new Promise(r => setTimeout(r, 8));
+      }
+    } catch {
+      fullResponse = "Maaf, koneksi ke AI gagal. Periksa internet kamu dan coba lagi.";
+      setStreamingContent(fullResponse);
+    }
+
+    const aiMsg: LocalMessage = {
+      id: `a-${Date.now()}`,
+      role: "assistant",
+      content: fullResponse || "Maaf, tidak ada respons.",
+      createdAt: new Date().toISOString(),
+    };
+
+    setConversations(prev => prev.map(c =>
+      c.id === activeConvId
+        ? { ...c, messages: [...messagesUpToEdit, aiMsg] }
+        : c
+    ));
+    setIsStreaming(false);
+    setStreamingContent("");
+  }, [editText, activeConvId, isStreaming, conversations, selectedModelId]);
 
   const handleCopy = useCallback((id: string, text: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -409,31 +477,64 @@ export default function DashboardPage() {
                   key={msg.id}
                   className={`nx-message ${msg.role === "user" ? "nx-user-msg" : "nx-ai-msg"}`}
                 >
-                  <div className="nx-msg-content">{msg.content}</div>
-                  <div className="nx-msg-footer">
-                    <span className="nx-msg-time">{formatTime(msg.createdAt)}</span>
-                    {msg.role === "assistant" && (
-                      <div className="nx-action-btns">
-                        {msg.id === lastAiMsgId && (
-                          <button
-                            className="nx-regen-btn"
-                            onClick={handleRegenerate}
-                            disabled={isStreaming}
-                            title="Coba jawaban lain"
-                          >
-                            🔄 Coba Lagi
-                          </button>
-                        )}
-                        <button
-                          className="nx-copy-btn"
-                          onClick={() => handleCopy(msg.id, msg.content)}
-                          title="Salin pesan"
-                        >
-                          {copiedId === msg.id ? "✓ Disalin" : "⎘ Salin"}
-                        </button>
+                  {editingId === msg.id ? (
+                    <div className="nx-edit-box">
+                      <textarea
+                        className="nx-edit-input"
+                        value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEditSave(msg.id); }
+                          if (e.key === "Escape") handleEditCancel();
+                        }}
+                        autoFocus
+                        rows={3}
+                      />
+                      <div className="nx-edit-actions">
+                        <button className="nx-edit-save" onClick={() => handleEditSave(msg.id)}>✓ Simpan & Kirim</button>
+                        <button className="nx-edit-cancel" onClick={handleEditCancel}>✕ Batal</button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="nx-msg-content">{msg.content}</div>
+                      <div className="nx-msg-footer">
+                        <span className="nx-msg-time">{formatTime(msg.createdAt)}</span>
+                        <div className="nx-action-btns">
+                          {msg.role === "user" && !isStreaming && (
+                            <button
+                              className="nx-edit-btn"
+                              onClick={() => handleEditStart(msg.id, msg.content)}
+                              title="Edit pesan"
+                            >
+                              ✏️ Edit
+                            </button>
+                          )}
+                          {msg.role === "assistant" && (
+                            <>
+                              {msg.id === lastAiMsgId && (
+                                <button
+                                  className="nx-regen-btn"
+                                  onClick={handleRegenerate}
+                                  disabled={isStreaming}
+                                  title="Coba jawaban lain"
+                                >
+                                  🔄 Coba Lagi
+                                </button>
+                              )}
+                              <button
+                                className="nx-copy-btn"
+                                onClick={() => handleCopy(msg.id, msg.content)}
+                                title="Salin pesan"
+                              >
+                                {copiedId === msg.id ? "✓ Disalin" : "⎘ Salin"}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
               {isStreaming && streamingContent && (
