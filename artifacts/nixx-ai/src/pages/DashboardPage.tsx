@@ -106,11 +106,27 @@ async function callPollinationsDirect(
   return cleanResponse(text);
 }
 
+const HISTORY_KEY = "nx-chat-history";
+const MAX_SAVED_CONVS = 30;
+
+function loadHistory(): LocalConv[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? (JSON.parse(raw) as LocalConv[]) : [];
+  } catch { return []; }
+}
+
+function saveHistory(convs: LocalConv[]) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(convs.slice(0, MAX_SAVED_CONVS)));
+  } catch { /* storage penuh, skip */ }
+}
+
 let convCounter = Date.now();
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const [conversations, setConversations] = useState<LocalConv[]>([]);
+  const [conversations, setConversations] = useState<LocalConv[]>(() => loadHistory());
   const [activeConvId, setActiveConvId] = useState<number | null>(null);
   const [selectedModelId, setSelectedModelId] = useState("deepseekv3");
   const [streamingContent, setStreamingContent] = useState("");
@@ -142,6 +158,10 @@ export default function DashboardPage() {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!isStreaming) saveHistory(conversations);
+  }, [conversations, isStreaming]);
 
   useEffect(() => {
     document.body.setAttribute("data-theme", theme);
