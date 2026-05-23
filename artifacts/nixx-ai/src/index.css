@@ -496,7 +496,13 @@ body:has(.nx-landing) {
   font-size: 11px;
   opacity: 0.55;
 }
-.nx-copy-btn {
+.nx-action-btns {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.nx-copy-btn,
+.nx-regen-btn {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 6px;
@@ -509,12 +515,23 @@ body:has(.nx-landing) {
   white-space: nowrap;
   line-height: 1.6;
 }
-.nx-message:hover .nx-copy-btn { opacity: 1; }
+.nx-message:hover .nx-copy-btn,
+.nx-message:hover .nx-regen-btn { opacity: 1; }
 .nx-copy-btn:hover {
   background: var(--accent);
   color: white;
   border-color: var(--accent);
   opacity: 1;
+}
+.nx-regen-btn:hover {
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--accent);
+  border-color: var(--accent);
+  opacity: 1;
+}
+.nx-regen-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .nx-typing {

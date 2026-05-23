@@ -261,6 +261,60 @@ export default function DashboardPage() {
     setStreamingContent("");
   };
 
+  const handleRegenerate = async () => {
+    if (!activeConvId || isStreaming) return;
+
+    const conv = conversations.find(c => c.id === activeConvId);
+    if (!conv) return;
+
+    const msgs = conv.messages;
+    const lastAiIdx = [...msgs].reverse().findIndex(m => m.role === "assistant");
+    if (lastAiIdx === -1) return;
+    const realIdx = msgs.length - 1 - lastAiIdx;
+
+    const lastUserMsg = [...msgs].slice(0, realIdx).reverse().find(m => m.role === "user");
+    if (!lastUserMsg) return;
+
+    const messagesWithoutLastAi = msgs.slice(0, realIdx);
+    setConversations(prev => prev.map(c =>
+      c.id === activeConvId ? { ...c, messages: messagesWithoutLastAi } : c
+    ));
+
+    setIsStreaming(true);
+    setStreamingContent("");
+
+    const apiHistory = messagesWithoutLastAi.map(m => ({ role: m.role, content: m.content }));
+    let fullResponse = "";
+
+    try {
+      const historyWithoutLast = apiHistory.slice(0, -1);
+      fullResponse = await callPollinationsDirect(lastUserMsg.content, historyWithoutLast, getModelById(selectedModelId).actualModel);
+      for (let i = 0; i < fullResponse.length; i += 4) {
+        setStreamingContent(s => s + fullResponse.slice(i, i + 4));
+        await new Promise(r => setTimeout(r, 8));
+      }
+    } catch {
+      fullResponse = "Maaf, koneksi ke AI gagal. Periksa internet kamu dan coba lagi.";
+      setStreamingContent(fullResponse);
+    }
+
+    const aiMsg: LocalMessage = {
+      id: `a-${Date.now()}`,
+      role: "assistant",
+      content: fullResponse || "Maaf, tidak ada respons.",
+      createdAt: new Date().toISOString(),
+    };
+
+    setConversations(prev => prev.map(c =>
+      c.id === activeConvId
+        ? { ...c, messages: [...messagesWithoutLastAi, aiMsg] }
+        : c
+    ));
+
+    setIsStreaming(false);
+    setStreamingContent("");
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(input); }
   };
@@ -268,6 +322,7 @@ export default function DashboardPage() {
   const messages = activeConv?.messages ?? [];
   const showDots = isStreaming && !streamingContent;
   const hasMessages = messages.length > 0 || isStreaming;
+  const lastAiMsgId = [...messages].reverse().find(m => m.role === "assistant")?.id ?? null;
   const currentModel = getModelById(selectedModelId);
   const basePath = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 
@@ -338,13 +393,25 @@ export default function DashboardPage() {
                   <div className="nx-msg-footer">
                     <span className="nx-msg-time">{formatTime(msg.createdAt)}</span>
                     {msg.role === "assistant" && (
-                      <button
-                        className="nx-copy-btn"
-                        onClick={() => handleCopy(msg.id, msg.content)}
-                        title="Salin pesan"
-                      >
-                        {copiedId === msg.id ? "✓ Disalin" : "⎘ Salin"}
-                      </button>
+                      <div className="nx-action-btns">
+                        {msg.id === lastAiMsgId && (
+                          <button
+                            className="nx-regen-btn"
+                            onClick={handleRegenerate}
+                            disabled={isStreaming}
+                            title="Coba jawaban lain"
+                          >
+                            🔄 Coba Lagi
+                          </button>
+                        )}
+                        <button
+                          className="nx-copy-btn"
+                          onClick={() => handleCopy(msg.id, msg.content)}
+                          title="Salin pesan"
+                        >
+                          {copiedId === msg.id ? "✓ Disalin" : "⎘ Salin"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
