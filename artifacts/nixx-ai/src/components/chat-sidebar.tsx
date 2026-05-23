@@ -76,7 +76,7 @@ import React from "react";
         <button className="nx-sidebar-btn" onClick={() => alert("Developer: Nixx Team\nContact: t.me/nixsukakamu")}>
           <span>👤</span> DEVELOPER 🚀
         </button>
-        <button className="nx-sidebar-btn" onClick={() => window.open("https://list.unix.biz.id","_blank")}>
+        <button className="nx-sidebar-btn" onClick={() => window.open("www.privatedomain.my.id","_blank")}>
           <span>📚</span> STORE MENU 🛍️
         </button>
         <button className="nx-sidebar-btn" onClick={() => window.open("https://t.me/nixsukakamu","_blank")}>
