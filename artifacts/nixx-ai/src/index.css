@@ -484,13 +484,38 @@ body:has(.nx-landing) {
   font-family: monospace;
 }
 .nx-msg-content pre code { background: none; color: inherit; padding: 0; }
+.nx-msg-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 5px;
+  gap: 8px;
+}
+.nx-user-msg .nx-msg-footer { flex-direction: row-reverse; }
 .nx-msg-time {
   font-size: 11px;
   opacity: 0.55;
-  margin-top: 5px;
-  text-align: right;
 }
-.nx-ai-msg .nx-msg-time { text-align: left; }
+.nx-copy-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+.nx-message:hover .nx-copy-btn { opacity: 1; }
+.nx-copy-btn:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  opacity: 1;
+}
 
 .nx-typing {
   align-self: flex-start;

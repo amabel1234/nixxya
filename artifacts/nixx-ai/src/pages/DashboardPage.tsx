@@ -116,6 +116,26 @@ export default function DashboardPage() {
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = useCallback((id: string, text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch(() => {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  }, []);
+
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     (localStorage.getItem("nx-theme") as "dark" | "light") || "dark"
   );
@@ -315,7 +335,18 @@ export default function DashboardPage() {
                   className={`nx-message ${msg.role === "user" ? "nx-user-msg" : "nx-ai-msg"}`}
                 >
                   <div className="nx-msg-content">{msg.content}</div>
-                  <div className="nx-msg-time">{formatTime(msg.createdAt)}</div>
+                  <div className="nx-msg-footer">
+                    <span className="nx-msg-time">{formatTime(msg.createdAt)}</span>
+                    {msg.role === "assistant" && (
+                      <button
+                        className="nx-copy-btn"
+                        onClick={() => handleCopy(msg.id, msg.content)}
+                        title="Salin pesan"
+                      >
+                        {copiedId === msg.id ? "✓ Disalin" : "⎘ Salin"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
               {isStreaming && streamingContent && (
