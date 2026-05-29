@@ -1105,3 +1105,18 @@ body:has(.nx-landing) {
   .nx-auth-card { padding: 28px 20px; }
   .nx-auth-heading { font-size: 1.15rem; }
 }
+
+/* ── Nixx Dr Button ── */
+.nx-nixdr-btn {
+  background: linear-gradient(135deg, rgba(108,99,255,0.15), rgba(90,200,250,0.1)) !important;
+  color: #a78bfa !important;
+  border-color: rgba(108,99,255,0.3) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+}
+.nx-nixdr-btn:hover {
+  background: linear-gradient(135deg, #6C63FF, #5AC8FA) !important;
+  color: white !important;
+  border-color: transparent !important;
+  transform: translateX(2px) !important;
+}
