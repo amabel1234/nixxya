@@ -24,6 +24,7 @@ const MENU_ITEMS = [
   { emoji: "🏪", label: "STORE MENU 🛍️", action: () => window.open("https://www.privatedomain.my.id", "_blank") },
   { emoji: "👥", label: "COMMUNITY 🌐", action: () => window.open("https://t.me/nixsukakamu", "_blank") },
   { emoji: "💖", label: "SAWERIA ✨", action: () => window.open("https://nixx-donation.vercel.app", "_blank") },
+  { emoji: "⬇️", label: "NIXX DR 🚀", action: () => window.open("https://nixdr.vercel.app", "_blank") },
 ];
 
 export function ConversationSidebar({
