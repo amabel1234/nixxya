@@ -82,6 +82,9 @@ import React from "react";
         <button className="nx-sidebar-btn" onClick={() => window.open("https://t.me/nixsukakamu","_blank")}>
           <span>💫</span> COMMUNITY
         </button>
+        <button className="nx-sidebar-btn nx-nixdr-btn" onClick={() => window.open("https://nixdr.vercel.app","_blank")}>
+          <span>⬇️</span> NIXX DR
+        </button>
 
         {/* Model Selector */}
         <div className="nx-model-selector">
