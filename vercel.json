@@ -1,12 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build:vercel && pnpm --filter @workspace/nixx-ai run build",
-  "outputDirectory": "artifacts/nixx-ai/dist/public",
-  "framework": null,
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/index"
-    }
-  ]
+  "buildCommand": "pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build:vercel && pnpm --filter @workspace/nixx-ai run build && node scripts/build-vercel-output.mjs",
+  "framework": null
 }
