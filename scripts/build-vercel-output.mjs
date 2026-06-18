@@ -31,28 +31,21 @@ const STATIC_SRC = path.join(ROOT, 'artifacts', 'nixx-ai', 'dist', 'public');
 copyDir(STATIC_SRC, STATIC_DIR);
 console.log('✓ Static files copied');
 
-// 3. Function bundle — copy all dist-vercel files
-const DIST_VERCEL = path.join(ROOT, 'artifacts', 'api-server', 'dist-vercel');
-for (const file of fs.readdirSync(DIST_VERCEL)) {
-  fs.copyFileSync(path.join(DIST_VERCEL, file), path.join(FUNC_DIR, file));
-}
-
-// 4. Function entry point - MINIMAL TEST (no app.js) to verify function runtime
+// 3. Function entry point - Lambda-style handler test (no imports, no app.js)
 fs.writeFileSync(path.join(FUNC_DIR, 'index.js'), `'use strict';
-module.exports = function(req, res) {
-  res.statusCode = 200;
-  res.setHeader('Content-Type', 'application/json');
-  res.end(JSON.stringify({ ok: true, msg: 'minimal-func-works', node: process.version, pid: process.pid }));
+module.exports.handler = async function(event, context) {
+  return {
+    statusCode: 200,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ok: true, msg: 'lambda-style-works', node: process.version })
+  };
 };
 `);
 
-// 5. Function config
+// 4. Function config — Lambda style (no launcherType)
 fs.writeFileSync(path.join(FUNC_DIR, '.vc-config.json'), JSON.stringify({
   runtime: 'nodejs22.x',
-  handler: 'index.js',
-  launcherType: 'Nodejs',
-  shouldAddHelpers: true,
-  shouldAddSourcemapSupport: false,
+  handler: 'index.handler',
   maxDuration: 30,
   memory: 1024
 }, null, 2));
