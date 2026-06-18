@@ -48,8 +48,11 @@ module.exports = function(req, res) {
 
 // 5. Function config
 fs.writeFileSync(path.join(FUNC_DIR, '.vc-config.json'), JSON.stringify({
-  runtime: 'nodejs20.x',
+  runtime: 'nodejs22.x',
   handler: 'index.js',
+  launcherType: 'Nodejs',
+  shouldAddHelpers: true,
+  shouldAddSourcemapSupport: false,
   maxDuration: 30,
   memory: 1024
 }, null, 2));
