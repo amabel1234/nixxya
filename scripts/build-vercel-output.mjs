@@ -37,25 +37,12 @@ for (const file of fs.readdirSync(DIST_VERCEL)) {
   fs.copyFileSync(path.join(DIST_VERCEL, file), path.join(FUNC_DIR, file));
 }
 
-// 4. Function entry point (loads app.js from same dir, exposes init errors)
+// 4. Function entry point - MINIMAL TEST (no app.js) to verify function runtime
 fs.writeFileSync(path.join(FUNC_DIR, 'index.js'), `'use strict';
-let _app, _err;
-try {
-  const mod = require('./app.js');
-  _app = mod.default || mod;
-} catch (e) {
-  _err = e;
-  console.error('[nixx-api] Failed to load app.js:', e.message, e.stack);
-}
-
 module.exports = function(req, res) {
-  if (_err) {
-    res.statusCode = 500;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ initError: _err.message, code: _err.code, stack: (_err.stack||'').slice(0, 800) }));
-    return;
-  }
-  return _app(req, res);
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify({ ok: true, msg: 'minimal-func-works', node: process.version, pid: process.pid }));
 };
 `);
 
