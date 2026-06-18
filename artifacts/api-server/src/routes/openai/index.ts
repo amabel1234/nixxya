@@ -9,7 +9,7 @@ import {
   SendOpenaiMessageParams,
   SendOpenaiMessageBody,
 } from "@workspace/api-zod";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { openai, generateImageBuffer } from "@workspace/integrations-openai-ai-server";
 
 const router: IRouter = Router();
 
@@ -143,6 +143,52 @@ router.get(
     res.json(msgs);
   }
 );
+
+router.post("/openai/images/generate", async (req, res): Promise<void> => {
+  const { prompt, conversationId } = req.body;
+  if (!prompt || typeof prompt !== "string") {
+    res.status(400).json({ error: "Prompt dibutuhkan" });
+    return;
+  }
+
+  const convId = conversationId ? parseInt(conversationId) : null;
+
+  if (convId) {
+    // Simpan pesan user
+    await db.insert(messages).values({
+      conversationId: convId,
+      role: "user",
+      content: `/gambar ${prompt}`,
+    });
+  }
+
+  try {
+    const buffer = await generateImageBuffer(prompt, "1024x1024");
+    const b64 = buffer.toString("base64");
+    const dataUrl = `data:image/png;base64,${b64}`;
+
+    if (convId) {
+      // Simpan gambar sebagai pesan AI
+      await db.insert(messages).values({
+        conversationId: convId,
+        role: "assistant",
+        content: dataUrl,
+      });
+    }
+
+    res.json({ dataUrl, prompt });
+  } catch (err: any) {
+    const errMsg = `Gagal generate gambar: ${err?.message ?? "Error tidak diketahui"}`;
+    if (convId) {
+      await db.insert(messages).values({
+        conversationId: convId,
+        role: "assistant",
+        content: errMsg,
+      });
+    }
+    res.status(500).json({ error: errMsg });
+  }
+});
 
 router.post(
   "/openai/conversations/:id/messages",

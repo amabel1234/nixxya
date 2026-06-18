@@ -22,6 +22,55 @@ function getCurrentTime() {
   );
 }
 
+function isImageContent(content: string) {
+  return content.startsWith("data:image/");
+}
+
+function ImageBubble({ content, prompt }: { content: string; prompt?: string }) {
+  const handleOpen = () => {
+    const win = window.open();
+    if (win) {
+      win.document.write(`<img src="${content}" style="max-width:100%;display:block;margin:auto;" />`);
+    }
+  };
+
+  const handleDownload = () => {
+    const a = document.createElement("a");
+    a.href = content;
+    a.download = `nixx-gambar-${Date.now()}.png`;
+    a.click();
+  };
+
+  return (
+    <div className="nx-image-bubble">
+      <img
+        src={content}
+        alt={prompt ?? "Generated image"}
+        className="nx-generated-img"
+        onError={(e) => {
+          (e.target as HTMLImageElement).style.display = "none";
+        }}
+      />
+      <div className="nx-image-actions">
+        <button className="nx-img-btn" onClick={handleOpen}>🔍 Buka</button>
+        <button className="nx-img-btn" onClick={handleDownload}>⬇️ Unduh</button>
+      </div>
+      {prompt && (
+        <div className="nx-image-prompt">
+          Prompt: {prompt}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MessageContent({ content }: { content: string }) {
+  if (isImageContent(content)) {
+    return <ImageBubble content={content} />;
+  }
+  return <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{content}</span>;
+}
+
 export default function ChatThread({ conversationId, selectedModel }: ChatThreadProps) {
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -30,6 +79,8 @@ export default function ChatThread({ conversationId, selectedModel }: ChatThread
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [imagePrompt, setImagePrompt] = useState("");
 
   const { data: conversationData, isLoading: isLoadingConv } =
     useGetOpenaiConversation(conversationId, {
@@ -56,16 +107,72 @@ export default function ChatThread({ conversationId, selectedModel }: ChatThread
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, streamingContent]);
+  }, [messages, streamingContent, isGeneratingImage]);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, [conversationId]);
 
+  const handleGenerateImage = async (prompt: string) => {
+    setIsGeneratingImage(true);
+    setImagePrompt(prompt);
+    setInput("");
+
+    // Optimistic user message
+    queryClient.setQueryData(
+      getGetOpenaiConversationQueryKey(conversationId),
+      (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          messages: [
+            ...old.messages,
+            {
+              id: Date.now(),
+              conversationId,
+              role: "user",
+              content: `/gambar ${prompt}`,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        };
+      }
+    );
+
+    try {
+      const res = await fetch("/api/openai/images/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, conversationId }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Gagal generate gambar");
+      }
+    } catch (err: any) {
+      // error sudah disimpan ke DB dari server
+    } finally {
+      setIsGeneratingImage(false);
+      setImagePrompt("");
+      queryClient.invalidateQueries({ queryKey: getGetOpenaiConversationQueryKey(conversationId) });
+      queryClient.invalidateQueries({ queryKey: getListOpenaiMessagesQueryKey(conversationId) });
+      queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
+    }
+  };
+
   const handleSend = async () => {
-    if (!input.trim() || isStreaming) return;
+    if (!input.trim() || isStreaming || isGeneratingImage) return;
 
     const userMessage = input.trim();
+
+    // Cek apakah command /gambar
+    const gambarMatch = userMessage.match(/^\/gambar\s+(.+)/i);
+    if (gambarMatch) {
+      await handleGenerateImage(gambarMatch[1].trim());
+      return;
+    }
+
     setInput("");
     setIsStreaming(true);
     setStreamingContent("");
@@ -142,15 +249,9 @@ export default function ChatThread({ conversationId, selectedModel }: ChatThread
     } finally {
       setIsStreaming(false);
       setStreamingContent("");
-      queryClient.invalidateQueries({
-        queryKey: getGetOpenaiConversationQueryKey(conversationId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: getListOpenaiMessagesQueryKey(conversationId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: getListOpenaiConversationsQueryKey(),
-      });
+      queryClient.invalidateQueries({ queryKey: getGetOpenaiConversationQueryKey(conversationId) });
+      queryClient.invalidateQueries({ queryKey: getListOpenaiMessagesQueryKey(conversationId) });
+      queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
     }
   };
 
@@ -159,6 +260,11 @@ export default function ChatThread({ conversationId, selectedModel }: ChatThread
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleImageButton = () => {
+    setInput("/gambar ");
+    inputRef.current?.focus();
   };
 
   if (isLoading) {
@@ -176,7 +282,7 @@ export default function ChatThread({ conversationId, selectedModel }: ChatThread
   return (
     <>
       <div className="nx-chat-messages">
-        {messages.length === 0 && !isStreaming && (
+        {messages.length === 0 && !isStreaming && !isGeneratingImage && (
           <div
             style={{
               textAlign: "center",
@@ -185,7 +291,7 @@ export default function ChatThread({ conversationId, selectedModel }: ChatThread
               marginTop: 40,
             }}
           >
-            Ketik pesan untuk memulai percakapan.
+            Ketik pesan atau gunakan <strong>/gambar [deskripsi]</strong> untuk generate gambar.
           </div>
         )}
 
@@ -195,12 +301,14 @@ export default function ChatThread({ conversationId, selectedModel }: ChatThread
             className={`nx-message ${msg.role === "user" ? "nx-user-msg" : "nx-ai-msg"}`}
             data-testid={`msg-${msg.id}`}
           >
-            <div className="nx-msg-content">{msg.content}</div>
+            <div className="nx-msg-content">
+              <MessageContent content={msg.content} />
+            </div>
             <div className="nx-msg-time">{getCurrentTime()}</div>
           </div>
         ))}
 
-        {/* Streaming bubble */}
+        {/* Streaming text bubble */}
         {isStreaming && (
           <div className="nx-message nx-ai-msg">
             <div className="nx-msg-content">
@@ -210,7 +318,7 @@ export default function ChatThread({ conversationId, selectedModel }: ChatThread
           </div>
         )}
 
-        {/* Typing dots while waiting for first token */}
+        {/* Typing dots */}
         {isStreaming && !streamingContent && (
           <div className="nx-typing">
             <div className="nx-typing-dots">
@@ -219,30 +327,54 @@ export default function ChatThread({ conversationId, selectedModel }: ChatThread
           </div>
         )}
 
+        {/* Image generating state */}
+        {isGeneratingImage && (
+          <div className="nx-message nx-ai-msg">
+            <div className="nx-msg-content nx-img-loading">
+              <div className="nx-img-spinner" />
+              <span>Sedang membuat gambar "{imagePrompt}"...</span>
+            </div>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="nx-input-container">
-        <textarea
-          ref={inputRef}
-          className="nx-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ketik pesan Anda di sini..."
-          rows={1}
-          disabled={isStreaming}
-          data-testid="input-message"
-        />
-        <button
-          className="nx-send-btn"
-          onClick={handleSend}
-          disabled={!input.trim() || isStreaming}
-          data-testid="button-send"
-        >
-          ✈ SEND
-        </button>
+      {/* Input area */}
+      <div className="nx-input-area">
+        {/* Toolbar */}
+        <div className="nx-toolbar">
+          <button
+            className="nx-tool-btn"
+            onClick={handleImageButton}
+            title="Generate Gambar"
+            disabled={isStreaming || isGeneratingImage}
+          >
+            🎨 Buat Gambar
+          </button>
+        </div>
+
+        <div className="nx-input-container">
+          <textarea
+            ref={inputRef}
+            className="nx-input"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={isGeneratingImage ? "Membuat gambar..." : "Ketik pesan atau /gambar [deskripsi]..."}
+            rows={1}
+            disabled={isStreaming || isGeneratingImage}
+            data-testid="input-message"
+          />
+          <button
+            className="nx-send-btn"
+            onClick={handleSend}
+            disabled={!input.trim() || isStreaming || isGeneratingImage}
+            data-testid="button-send"
+          >
+            ✈ KIRIM
+          </button>
+        </div>
       </div>
     </>
   );
