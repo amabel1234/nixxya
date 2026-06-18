@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "pnpm install --no-frozen-lockfile && pnpm --filter @workspace/nixx-ai run build",
+  "buildCommand": "pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build:vercel && pnpm --filter @workspace/nixx-ai run build",
   "outputDirectory": "artifacts/nixx-ai/dist",
   "framework": null,
   "rewrites": [
