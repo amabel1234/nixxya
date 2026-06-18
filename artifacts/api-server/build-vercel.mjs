@@ -7,13 +7,15 @@ import esbuildPluginPino from "esbuild-plugin-pino";
 globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
+const distDir = path.resolve(artifactDir, "dist-vercel");
 
 await esbuild({
   entryPoints: [path.resolve(artifactDir, "src/app.ts")],
   platform: "node",
   bundle: true,
   format: "esm",
-  outfile: path.resolve(artifactDir, "dist/app.mjs"),
+  outdir: distDir,
+  outExtension: { ".js": ".mjs" },
   logLevel: "info",
   external: [
     "*.node", "sharp", "better-sqlite3", "sqlite3", "canvas", "bcrypt",
@@ -33,4 +35,4 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   },
 }).catch((err) => { console.error(err); process.exit(1); });
 
-console.log("✓ Vercel API bundle built: dist/app.mjs");
+console.log("✓ Vercel API bundle built: dist-vercel/app.mjs");
