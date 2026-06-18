@@ -31,23 +31,21 @@ const STATIC_SRC = path.join(ROOT, 'artifacts', 'nixx-ai', 'dist', 'public');
 copyDir(STATIC_SRC, STATIC_DIR);
 console.log('✓ Static files copied');
 
-// 3. Function entry point - Lambda-style handler test (no imports, no app.js)
-fs.writeFileSync(path.join(FUNC_DIR, 'index.js'), `'use strict';
-module.exports.handler = async function(event, context) {
-  return {
-    statusCode: 200,
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ok: true, msg: 'lambda-style-works', node: process.version })
-  };
-};
+// 3. Edge function entry point test
+fs.writeFileSync(path.join(FUNC_DIR, 'index.js'), `
+export default function handler(request) {
+  const url = new URL(request.url);
+  return new Response(
+    JSON.stringify({ ok: true, runtime: 'edge', path: url.pathname }),
+    { status: 200, headers: { 'content-type': 'application/json' } }
+  );
+}
 `);
 
-// 4. Function config — Lambda style (no launcherType)
+// 4. Edge function config
 fs.writeFileSync(path.join(FUNC_DIR, '.vc-config.json'), JSON.stringify({
-  runtime: 'nodejs22.x',
-  handler: 'index.handler',
-  maxDuration: 30,
-  memory: 1024
+  runtime: 'edge',
+  entrypoint: 'index.js'
 }, null, 2));
 
 console.log('✓ Function bundle created');
