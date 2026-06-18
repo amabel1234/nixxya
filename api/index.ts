@@ -1,3 +1,4 @@
-export default function handler(req: any, res: any) {
-  res.json({ ok: true, ts: Date.now(), node: process.version });
-}
+// @ts-ignore — imported from pre-built esbuild CJS bundle
+import app from "../artifacts/api-server/dist-vercel/app.js";
+
+export default app;
