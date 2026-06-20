@@ -154,16 +154,20 @@ function extractImagePrompt(text: string) {
   return text.replace(IMG_TRIGGERS, "").trim() || text.trim();
 }
 async function generateImage(prompt: string): Promise<string> {
-  const encoded = encodeURIComponent(prompt);
-  const seed = Math.floor(Math.random() * 999999);
-  // Pollinations free image API — returns image directly
-  const url = `https://image.pollinations.ai/prompt/${encoded}?width=768&height=512&seed=${seed}&nologo=true&model=flux`;
-  // Ping dulu untuk pastikan URL valid (Pollinations async)
-  const res = await fetch(url, { method: "HEAD" }).catch(() => null);
-  if (res && !res.ok) throw new Error(`Pollinations gagal: ${res.status}`);
-  return url;
-}
-
+    // Gunakan server-side API (/api/generate-image) supaya tidak ada CORS issue
+    const res = await fetch("/api/generate-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { error?: string };
+      throw new Error(err.error ?? `Gagal generate gambar (${res.status})`);
+    }
+    const data = await res.json() as { dataUrl?: string; error?: string };
+    if (!data.dataUrl) throw new Error(data.error ?? "Respon gambar kosong");
+    return data.dataUrl;
+  }
 async function askAI(msg: string, hist: { role: string; content: string }[], modelId: string) {
   const sys = getSys(modelId);
   const messages = [
@@ -695,7 +699,7 @@ export default function DashboardPage() {
                               alt={msg.attach.prompt ?? "Generated"}
                               className="nx-genimg"
                               loading="eager"
-                              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                              onError={e => { const t = e.target as HTMLImageElement; t.style.opacity="0.3"; t.alt="Gagal muat gambar — klik Buka"; }}
                             />
                             <div className="nx-genimg-actions">
                               <a href={msg.attach.imageUrl} target="_blank" rel="noopener noreferrer" className="nx-genimg-btn">
