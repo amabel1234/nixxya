@@ -694,7 +694,8 @@ export default function DashboardPage() {
                               src={msg.attach.imageUrl}
                               alt={msg.attach.prompt ?? "Generated"}
                               className="nx-genimg"
-                              loading="lazy"
+                              loading="eager"
+                              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
                             />
                             <div className="nx-genimg-actions">
                               <a href={msg.attach.imageUrl} target="_blank" rel="noopener noreferrer" className="nx-genimg-btn">
