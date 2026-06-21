@@ -26,6 +26,23 @@ import type { IncomingHttpHeaders } from "http";
 const CLERK_FAPI = "https://frontend-api.clerk.dev";
 export const CLERK_PROXY_PATH = "/api/__clerk";
 
+/**
+ * Returns the first effective public hostname for the given request,
+ * preferring x-forwarded-host over the Host header so callers behind a
+ * proxy see the original client-facing host.
+ *
+ * x-forwarded-host can take three shapes:
+ *   - undefined (no proxy involved)
+ *   - a single string (one proxy hop)
+ *   - a comma-delimited string when an upstream appended rather than
+ *     replaced the header (Node folds duplicate headers this way), or a
+ *     string[] in some Express typings
+ * In the multi-value case, the leftmost value is the original client-
+ * facing host. Take that one in all forms. Exported so that app.ts
+ * (clerkMiddleware callback) and this proxy middleware agree on which
+ * hostname is canonical — otherwise multi-domain/custom-domain flows
+ * break.
+ */
 export function getClerkProxyHost(req: {
   headers: IncomingHttpHeaders;
 }): string | undefined {
@@ -36,6 +53,7 @@ export function getClerkProxyHost(req: {
 }
 
 export function clerkProxyMiddleware(): RequestHandler {
+  // Only run proxy in production — Clerk proxying doesn't work for dev instances
   if (process.env.NODE_ENV !== "production") {
     return (_req, _res, next) => next();
   }
