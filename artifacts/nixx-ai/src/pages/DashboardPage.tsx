@@ -168,8 +168,8 @@ async function generateImage(prompt: string): Promise<string> {
     if (!data.dataUrl) throw new Error(data.error ?? "Respon gambar kosong");
     return data.dataUrl;
   }
-async function askAI(msg: string, hist: { role: string; content: string }[], modelId: string) {
-  const sys = getSys(modelId);
+async function askAI(msg: string, hist: { role: string; content: string }[], modelId: string, customPersona?: string) {
+  const sys = customPersona ? customPersona + " " + BASE_PROMPT : getSys(modelId);
   const messages = [
     { role: "system", content: sys },
     ...hist.slice(-8).map(m => ({ role: m.role, content: m.content.slice(0, 2000) })),
@@ -258,6 +258,29 @@ const CSS = `
 .nx-genimg-btn:hover{background:rgba(168,85,247,.28)}
 .nx-genimg-prompt{font-size:11px;color:var(--nx-text-muted,#7b6fa0);font-style:italic;margin-top:2px}
 .nx-tb-btn.img-on{color:#a855f7;background:rgba(168,85,247,.2);border:1px solid rgba(168,85,247,.35)}
+  .nx-char-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+  .nx-char-modal{background:var(--nx-card-bg,#1e1a2e);border:1px solid var(--nx-border,#2d2550);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+  .nx-char-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;border-bottom:1px solid var(--nx-border,#2d2550)}
+  .nx-char-title{font-size:15px;font-weight:700;color:var(--nx-text,#f0eeff)}
+  .nx-char-close{background:none;border:none;cursor:pointer;color:var(--nx-text-muted,#7b6fa0);font-size:18px;padding:2px 6px}
+  .nx-char-body{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+  .nx-char-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1.5px solid transparent;background:rgba(168,85,247,.06);cursor:pointer;transition:all .15s}
+  .nx-char-card:hover,.nx-char-card.active{border-color:rgba(168,85,247,.5);background:rgba(168,85,247,.13)}
+  .nx-char-card.active{border-color:#a855f7}
+  .nx-char-emoji{font-size:26px;flex-shrink:0;width:36px;text-align:center}
+  .nx-char-info{flex:1;min-width:0}
+  .nx-char-name{font-size:13px;font-weight:700;color:var(--nx-text,#f0eeff)}
+  .nx-char-desc{font-size:11px;color:var(--nx-text-muted,#7b6fa0);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nx-char-del{background:none;border:none;cursor:pointer;color:#f87171;font-size:13px;opacity:.55;padding:3px 5px;flex-shrink:0}
+  .nx-char-del:hover{opacity:1}
+  .nx-char-form{border:1.5px dashed rgba(168,85,247,.35);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .nx-char-input{background:rgba(168,85,247,.07);border:1px solid rgba(168,85,247,.25);border-radius:8px;padding:7px 10px;font-size:13px;color:var(--nx-text,#f0eeff);width:100%;outline:none;box-sizing:border-box}
+  .nx-char-input:focus{border-color:#a855f7}
+  .nx-char-save{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:9px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-end;margin-top:2px}
+  .nx-char-save:disabled{opacity:.4;cursor:default}
+  [data-theme="light"] .nx-char-modal{background:#fff;border-color:#e8e4ff}
+  [data-theme="light"] .nx-char-name{color:#1a1a2e}
+  [data-theme="light"] .nx-char-input{background:#f5f3ff;border-color:#d8b4fe;color:#1a1a2e}
 `;
 
 // ─── Ikon file ─────────────────────────────────────────────────────────────────
@@ -270,7 +293,23 @@ function fileIcon(name: string, kind: "file" | "audio") {
   return "📎";
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Character types & presets ──────────────────────────────────────────────
+  interface CustomChar { id: string; emoji: string; name: string; persona: string; }
+  const LS_CHARS = "nx-custom-chars";
+  const PRESET_CHARS: CustomChar[] = [
+    { id:"preset-asisten",    emoji:"🧠", name:"Asisten Umum",   persona:"Kamu adalah asisten pribadi cerdas dan ramah. Bantu pengguna dengan informatif." },
+    { id:"preset-teman",      emoji:"😎", name:"Teman Gaul",      persona:"Kamu adalah teman ngobrol santai dan lucu, suka pakai bahasa gaul. Jangan terlalu formal." },
+    { id:"preset-guru",       emoji:"📚", name:"Guru Pintar",     persona:"Kamu adalah guru yang sabar dan pintar. Jelaskan dengan sederhana dan contoh nyata." },
+    { id:"preset-programmer", emoji:"💻", name:"Programmer Pro",  persona:"Kamu adalah programmer senior ahli coding. Bantu debug, review kode, dan jelaskan teknis dengan jelas." },
+    { id:"preset-chef",       emoji:"🍳", name:"Chef Kreatif",    persona:"Kamu adalah chef profesional. Berikan resep, tips memasak, dan ide masakan lezat dan mudah." },
+    { id:"preset-psikolog",   emoji:"💙", name:"Psikolog",        persona:"Kamu adalah psikolog yang empati. Dengarkan dengan baik dan berikan dukungan emosional." },
+  ];
+  function loadChars(): CustomChar[] {
+    try { const r = localStorage.getItem(LS_CHARS); return r ? JSON.parse(r) : []; } catch { return []; }
+  }
+  function saveChars(c: CustomChar[]) { try { localStorage.setItem(LS_CHARS, JSON.stringify(c)); } catch {} }
+
+  // ─── Component ────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth();
   const [convs, setConvs] = useState<LocalConv[]>(() => load());
@@ -294,6 +333,10 @@ export default function DashboardPage() {
   const [speakId, setSpeakId] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [imgMode, setImgMode] = useState(false);
+    const [showCharModal, setShowCharModal] = useState(false);
+    const [customChars, setCustomChars] = useState<CustomChar[]>(() => loadChars());
+    const [activeCharId, setActiveCharId] = useState<string | null>(null);
+    const [charForm, setCharForm] = useState({ emoji: "🤖", name: "", persona: "" });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -352,7 +395,10 @@ export default function DashboardPage() {
     try {
       const hist = apiMsgs.slice(0, -1).map(m => ({ role: m.role, content: m.content }));
       const last = apiMsgs[apiMsgs.length - 1].content;
-      full = await askAI(last, hist, getModelById(modelId).actualModel);
+      // Gunakan persona karakter aktif kalau ada
+        const allChars = [...PRESET_CHARS, ...customChars];
+        const activeChar = activeCharId ? allChars.find(c => c.id === activeCharId) : null;
+        full = await askAI(last, hist, getModelById(modelId).actualModel, activeChar?.persona);
       for (let i = 0; i < full.length; i += 4) {
         setStreaming(s => s + full.slice(i, i + 4));
         await new Promise(r => setTimeout(r, 8));
@@ -811,7 +857,16 @@ export default function DashboardPage() {
                 {listening ? <><span className="recdot" />Stop</> : <>🎙️ Suara</>}
               </button>
 
-              {/* Export */}
+              {/* Karakter */}
+                <button
+                  className={`nx-tb-btn${activeCharId ? " on" : ""}`}
+                  onClick={() => setShowCharModal(true)}
+                  title="Pilih atau buat karakter AI"
+                >
+                  🎭 <span>{activeCharId ? ([...PRESET_CHARS,...customChars].find(c=>c.id===activeCharId)?.name ?? "Karakter") : "Karakter"}</span>
+                </button>
+
+                              {/* Export */}
               <div className="nx-exwrap">
                 <button className="nx-tb-btn" onClick={() => setShowExport(v => !v)}>
                   💾 Export
@@ -847,7 +902,78 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      {showExport && <div style={{ position: "fixed", inset: 0, zIndex: 98 }} onClick={() => setShowExport(false)} />}
+      {/* ── Character Modal ── */}
+        {showCharModal && (
+          <div className="nx-char-overlay" onClick={() => setShowCharModal(false)}>
+            <div className="nx-char-modal" onClick={e => e.stopPropagation()}>
+              <div className="nx-char-header">
+                <span className="nx-char-title">🎭 Pilih Karakter AI</span>
+                <button className="nx-char-close" onClick={() => setShowCharModal(false)}>✕</button>
+              </div>
+              <div className="nx-char-body">
+                <div className={`nx-char-card${!activeCharId ? " active" : ""}`}
+                  onClick={() => { setActiveCharId(null); setShowCharModal(false); }}>
+                  <span className="nx-char-emoji">🤖</span>
+                  <div className="nx-char-info">
+                    <div className="nx-char-name">Default (Model Biasa)</div>
+                    <div className="nx-char-desc">Gunakan kepribadian model yang dipilih</div>
+                  </div>
+                </div>
+                {[...PRESET_CHARS].map(c => (
+                  <div key={c.id} className={`nx-char-card${activeCharId===c.id?" active":""}`}
+                    onClick={() => { setActiveCharId(c.id); setShowCharModal(false); }}>
+                    <span className="nx-char-emoji">{c.emoji}</span>
+                    <div className="nx-char-info">
+                      <div className="nx-char-name">{c.name}</div>
+                      <div className="nx-char-desc">{c.persona}</div>
+                    </div>
+                  </div>
+                ))}
+                {customChars.map(c => (
+                  <div key={c.id} className={`nx-char-card${activeCharId===c.id?" active":""}`}
+                    onClick={() => { setActiveCharId(c.id); setShowCharModal(false); }}>
+                    <span className="nx-char-emoji">{c.emoji}</span>
+                    <div className="nx-char-info">
+                      <div className="nx-char-name">{c.name} <span style={{fontSize:10,color:"#a855f7"}}>✦ Custom</span></div>
+                      <div className="nx-char-desc">{c.persona}</div>
+                    </div>
+                    <button className="nx-char-del" onClick={e => {
+                      e.stopPropagation();
+                      const next = customChars.filter(x=>x.id!==c.id);
+                      setCustomChars(next); saveChars(next);
+                      if (activeCharId===c.id) setActiveCharId(null);
+                    }}>🗑️</button>
+                  </div>
+                ))}
+                <div className="nx-char-form">
+                  <div className="nx-char-form-title">✨ Buat Karakter Sendiri</div>
+                  <div style={{display:"flex",gap:6}}>
+                    <input className="nx-char-input" style={{width:52,textAlign:"center",fontSize:20,padding:"4px"}}
+                      maxLength={2} placeholder="😊" value={charForm.emoji}
+                      onChange={e => setCharForm(f=>({...f,emoji:e.target.value}))} />
+                    <input className="nx-char-input" style={{flex:1}} placeholder="Nama karakter..."
+                      maxLength={30} value={charForm.name}
+                      onChange={e => setCharForm(f=>({...f,name:e.target.value}))} />
+                  </div>
+                  <textarea className="nx-char-input" rows={3} style={{resize:"none"}}
+                    placeholder="Kepribadian / persona AI ini... (contoh: Kamu adalah barista kopi yang suka cerita lucu)"
+                    maxLength={500} value={charForm.persona}
+                    onChange={e => setCharForm(f=>({...f,persona:e.target.value}))} />
+                  <button className="nx-char-save"
+                    disabled={!charForm.name.trim()||!charForm.persona.trim()}
+                    onClick={() => {
+                      const nc: CustomChar = {id:"custom-"+Date.now(),emoji:charForm.emoji||"🤖",name:charForm.name.trim(),persona:charForm.persona.trim()};
+                      const next=[...customChars,nc];
+                      setCustomChars(next); saveChars(next);
+                      setActiveCharId(nc.id); setCharForm({emoji:"🤖",name:"",persona:""});
+                      setShowCharModal(false);
+                    }}>✓ Simpan & Pakai</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+              {showExport && <div style={{ position: "fixed", inset: 0, zIndex: 98 }} onClick={() => setShowExport(false)} />}
     </>
   );
 }
