@@ -343,6 +343,7 @@ export default function DashboardPage() {
   const [imgMode, setImgMode] = useState(false);
     const [showCharModal, setShowCharModal] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+    const [webSearch, setWebSearch] = useState(false);
     const [customChars, setCustomChars] = useState<CustomChar[]>(() => loadChars());
     const [activeCharId, setActiveCharId] = useState<string | null>(null);
     const [charForm, setCharForm] = useState({ emoji: "🤖", name: "", persona: "" });
@@ -643,7 +644,28 @@ export default function DashboardPage() {
     const cid = convId;
     const nextMsgs = [...prevMsgs, userMsg];
     setConvs(p => p.map(c => c.id === cid ? { ...c, messages: nextMsgs } : c));
-    await doStream(nextMsgs, cid, wasImgMode ? userText : undefined);
+    // Web Search: ambil konteks internet sebelum kirim ke AI
+      if (webSearch && userText && !wasImgMode) {
+        try {
+          const _bp = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
+          const sr = await fetch(`${_bp}/api/web-search?q=${encodeURIComponent(userText)}`);
+          const sd = await sr.json();
+          if (sd.results?.length > 0) {
+            const ctx = sd.results.slice(0, 3).map((r: any, i: number) =>
+              `[Hasil ${i+1}] ${r.title ? r.title + "\n" : ""}${r.content || r.snippet || ""}\nSumber: ${r.url || ""}`
+            ).join("\n\n");
+            const searchMsg: LocalMessage = {
+              id: `s-${Date.now()}`, role: "user",
+              content: `[Hasil pencarian internet untuk: "${userText}"]\n\n${ctx}\n\nBerdasarkan hasil pencarian di atas, jawab: ${userText}`,
+              text: undefined, createdAt: new Date().toISOString(),
+            };
+            const msgsWithSearch = [...nextMsgs.slice(0, -1), searchMsg];
+            await doStream(msgsWithSearch, cid, undefined);
+            return;
+          }
+        } catch (_) {}
+      }
+          await doStream(nextMsgs, cid, wasImgMode ? userText : undefined);
   };
 
   const regen = async () => {
@@ -847,7 +869,7 @@ export default function DashboardPage() {
                 {/* Tombol + (attach menu) */}
                 <div className="nx-attach-wrap">
                   <button
-                    className={`nx-plus-btn${showAttachMenu ? " open" : ""}`}
+                    className={`nx-plus-btn${showAttachMenu ? " open" : ""}${webSearch ? " ws-on" : ""}`}
                     onClick={() => setShowAttachMenu(v => !v)}
                     title="Lampiran & Fitur"
                   >+</button>
@@ -860,6 +882,13 @@ export default function DashboardPage() {
                       }}>
                         <span className="nx-am-icon">🖼️</span>
                         <span>{imgMode ? "✓ Mode Gambar Aktif" : "Buat Gambar"}</span>
+                      </button>
+                      {/* Web Search */}
+                      <button className={`nx-am-item${webSearch ? " on" : ""}`} onClick={() => {
+                        setWebSearch(v => !v); setShowAttachMenu(false);
+                      }}>
+                        <span className="nx-am-icon">🌐</span>
+                        <span>{webSearch ? "✓ Web Search Aktif" : "Web Search"}</span>
                       </button>
                       {/* Upload File */}
                       <button className="nx-am-item" onClick={() => { fileRef.current?.click(); setShowAttachMenu(false); }}>
@@ -898,6 +927,7 @@ export default function DashboardPage() {
                   placeholder={
                     listening ? "🎤 Sedang mendengarkan..." :
                       imgMode ? "🖼️ Deskripsikan gambar yang mau dibuat..." :
+                      webSearch ? "🌐 Tanya apa saja, saya cari di internet..." :
                       pendingFile ? `Tanya tentang ${pendingFile.name}...` :
                         "Ketik pesan Anda di sini..."
                   }
