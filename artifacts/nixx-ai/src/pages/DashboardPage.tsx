@@ -344,6 +344,9 @@ export default function DashboardPage() {
     const [showCharModal, setShowCharModal] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
     const [webSearch, setWebSearch] = useState(false);
+    const [isPremium, setIsPremium] = useState(false);
+    const [showUpgrade, setShowUpgrade] = useState(false);
+    const [upgradeReason, setUpgradeReason] = useState<"limit"|"model">("limit");
     const [customChars, setCustomChars] = useState<CustomChar[]>(() => loadChars());
     const [activeCharId, setActiveCharId] = useState<string | null>(null);
     const [charForm, setCharForm] = useState({ emoji: "🤖", name: "", persona: "" });
@@ -580,6 +583,17 @@ export default function DashboardPage() {
   const send = async (txt: string) => {
     const userText = txt.trim();
     if ((!userText && !pendingFile) || busy) return;
+    // Cek limit harian (hanya non-premium)
+    if (!isPremium) {
+      const _today = new Date().toDateString();
+      let dc: {date:string;count:number} = {date:"",count:0};
+      try { dc = JSON.parse(localStorage.getItem("nx-daily-msgs")||"{}"); } catch {}
+      const _cnt = dc.date === _today ? (dc.count||0) : 0;
+      let _lim = 20;
+      try { const _cr = await fetch((import.meta.env.BASE_URL??"").replace(/\/$/, "")+"/api/get-config"); const _cd = await _cr.json(); _lim = _cd.dailyFreeLimit||20; } catch {}
+      if (_cnt >= _lim) { setUpgradeReason("limit"); setShowUpgrade(true); return; }
+      localStorage.setItem("nx-daily-msgs", JSON.stringify({date:_today,count:_cnt+1}));
+    }
     const wasImgMode = imgMode;
     setInput(""); setImgMode(false); if (inputRef.current) inputRef.current.style.height = "auto";
 
@@ -705,7 +719,11 @@ export default function DashboardPage() {
         conversations={sideConvs} activeId={activeId}
         onSelect={id => { setActiveId(id); setSidebarOpen(false); }}
         onNew={newChat} onDelete={del} onClearChat={clearChat}
-        selectedModelId={modelId} onModelChange={id => { setModelId(id); setSidebarOpen(false); }}
+        selectedModelId={modelId} onModelChange={id => {
+            const PREMIUM_MODELS = ["gpt4o","gemini25v1","gemini25v2","grok4fast","grok3jail1","grok3jail2","gptoss120","llama33","perplexed"];
+            if (PREMIUM_MODELS.includes(id) && !isPremium) { setUpgradeReason("model"); setShowUpgrade(true); return; }
+            setModelId(id); setSidebarOpen(false);
+          }}
         open={sidebarOpen}
         userName={user?.username ?? user?.email?.split("@")[0] ?? "User"}
         basePath={bp}
@@ -1015,6 +1033,23 @@ export default function DashboardPage() {
         )}
               {showAttachMenu && <div style={{ position: "fixed", inset: 0, zIndex: 119 }} onClick={() => setShowAttachMenu(false)} />}
               {showExport && <div style={{ position: "fixed", inset: 0, zIndex: 98 }} onClick={() => setShowExport(false)} />}
+
+      {/* Upgrade Premium Modal */}
+      {showUpgrade && (
+        <>
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:200}} onClick={()=>setShowUpgrade(false)} />
+          <div style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",zIndex:201,background:"#13131f",border:"2px solid #6366f1",borderRadius:20,padding:"32px 28px",maxWidth:380,width:"90%",textAlign:"center"}}>
+            <div style={{fontSize:48,marginBottom:12}}>👑</div>
+            <div style={{fontSize:20,fontWeight:800,color:"#fff",marginBottom:8}}>{upgradeReason==="limit"?"Limit Harian Habis!":"Model Premium!"}</div>
+            <div style={{fontSize:14,color:"#94a3b8",marginBottom:24,lineHeight:"1.6"}}>{upgradeReason==="limit"?"Kamu sudah mencapai batas pesan gratis hari ini. Upgrade ke Premium untuk kirim pesan unlimited!":"Model AI ini khusus pengguna Premium. Upgrade sekarang untuk menggunakannya!"}</div>
+            <button onClick={()=>{setShowUpgrade(false);window.location.href=(import.meta.env.BASE_URL??"").replace(/\/$/,"")+"/premium";}}
+              style={{width:"100%",padding:"13px",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",border:"none",borderRadius:12,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",marginBottom:10}}>
+              ✨ Upgrade ke Premium
+            </button>
+            <button onClick={()=>setShowUpgrade(false)} style={{width:"100%",padding:"10px",background:"transparent",border:"1px solid #334155",borderRadius:10,color:"#64748b",fontSize:13,cursor:"pointer"}}>Lanjut Gratis</button>
+          </div>
+        </>
+      )}
     </>
   );
 }

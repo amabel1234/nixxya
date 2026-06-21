@@ -8,6 +8,7 @@ import React from "react";
   import NotFound from "@/pages/not-found";
   import TermsPage from "@/pages/TermsPage";
   import AdminPage from "@/pages/admin";
+  import PremiumPage from "@/pages/premium";
 
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
@@ -48,6 +49,9 @@ import React from "react";
         </Route>
         <Route path="/dashboard">
           {user ? <DashboardPage /> : <Redirect to="/sign-in" />}
+        </Route>
+        <Route path="/premium">
+          {user ? <PremiumPage /> : <Redirect to="/sign-in" />}
         </Route>
         <Route path="/syarat">
           <TermsPage />
