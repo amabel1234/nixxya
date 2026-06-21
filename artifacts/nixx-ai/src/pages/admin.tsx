@@ -1,425 +1,449 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Link } from "wouter";
+import { useAuth } from "@clerk/react";
 
-  interface User { id:number; email:string; username:string; registeredAt:string; isPremium?:boolean; }
-  interface Payment { id:number; email:string; username:string; name:string; phone:string; payRef:string; status:string; createdAt:string; }
-  interface Config { premiumPrice:number; dailyFreeLimit:number; qrisUrl:string; danaNumber:string; danaName:string; adminPassword?:string; }
-  interface Stats { total:number; users:User[]; }
+type Section = "dashboard" | "payments" | "users" | "settings";
+interface Stats { totalUsers: number; premiumUsers: number; pendingPayments: number; todayMessages: number }
+interface Payment { id: number; userId: string; planId: string; amountRp: number; status: string; danaNumber: string | null; note: string | null; confirmedAt: string | null; createdAt: string; userEmail: string | null; userName: string | null }
+interface AdminUser { id: string; email: string; name: string | null; isPremium: boolean; premiumUntil: string | null; createdAt: string }
+interface AppSettings { qris_link: string; dana_number: string; dana_name: string; price_monthly: string; price_quarterly: string; price_yearly: string; daily_limit_free: string; premium_model_ids: string }
 
-  type Menu = "stats" | "payments" | "settings";
+const MENU: { id: Section; icon: string; label: string }[] = [
+  { id: "dashboard", icon: "📊", label: "Dashboard" },
+  { id: "payments", icon: "💳", label: "Pembayaran" },
+  { id: "users", icon: "👑", label: "Premium Users" },
+  { id: "settings", icon: "⚙️", label: "Pengaturan" },
+];
 
-  const CSS = `
-  *{box-sizing:border-box;margin:0;padding:0;}
-  .a-root{display:flex;min-height:100vh;background:#070711;color:#e2e8f0;font-family:'Inter',system-ui,sans-serif;}
-  /* ── Sidebar ── */
-  .a-sidebar{width:240px;background:#0f0f1a;border-right:1px solid #1e293b;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:50;transition:transform .25s;}
-  .a-sidebar.closed{transform:translateX(-100%);}
-  .a-logo{padding:24px 20px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #1e293b;}
-  .a-logo-icon{width:38px;height:38px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
-  .a-logo-text{font-size:16px;font-weight:700;color:#fff;}
-  .a-logo-sub{font-size:11px;color:#475569;}
-  .a-nav{flex:1;padding:12px 8px;display:flex;flex-direction:column;gap:4px;}
-  .a-nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:14px;color:#94a3b8;border:none;background:transparent;width:100%;text-align:left;transition:all .15s;}
-  .a-nav-item:hover{background:#1e293b;color:#e2e8f0;}
-  .a-nav-item.active{background:linear-gradient(135deg,rgba(99,102,241,.25),rgba(139,92,246,.25));color:#a78bfa;border:1px solid rgba(99,102,241,.3);}
-  .a-nav-icon{font-size:18px;width:22px;text-align:center;}
-  .a-nav-badge{margin-left:auto;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:20px;}
-  .a-sidebar-footer{padding:16px;border-top:1px solid #1e293b;}
-  .a-logout-btn{width:100%;padding:9px;background:transparent;border:1px solid #334155;border-radius:8px;color:#64748b;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
-  .a-logout-btn:hover{border-color:#f87171;color:#f87171;}
-  /* ── Main ── */
-  .a-main{flex:1;margin-left:240px;padding:28px 24px;transition:margin .25s;}
-  .a-main.full{margin-left:0;}
-  .a-topbar{display:flex;align-items:center;gap:12px;margin-bottom:28px;}
-  .a-hamburger{display:none;background:transparent;border:1px solid #334155;border-radius:8px;padding:8px;cursor:pointer;color:#94a3b8;font-size:18px;}
-  .a-page-title{font-size:20px;font-weight:700;color:#fff;}
-  .a-page-sub{font-size:13px;color:#475569;margin-top:2px;}
-  /* ── Login ── */
-  .a-login-wrap{max-width:380px;margin:80px auto;}
-  .a-card{background:#13131f;border:1px solid #1e293b;border-radius:16px;padding:28px;}
-  .a-card-title{font-size:18px;font-weight:700;margin-bottom:4px;}
-  .a-card-sub{font-size:13px;color:#64748b;margin-bottom:20px;}
-  /* ── Stats ── */
-  .a-grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;}
-  .a-stat{background:#13131f;border:1px solid #1e293b;border-radius:14px;padding:20px;text-align:center;}
-  .a-stat-num{font-size:34px;font-weight:800;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-  .a-stat-lbl{font-size:12px;color:#64748b;margin-top:4px;}
-  /* ── Table ── */
-  .a-table-card{background:#13131f;border:1px solid #1e293b;border-radius:14px;overflow:hidden;margin-bottom:20px;}
-  .a-table-hd{padding:16px 20px;border-bottom:1px solid #1e293b;display:flex;align-items:center;justify-content:space-between;}
-  .a-table-ttl{font-size:15px;font-weight:600;}
-  .a-refresh{background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;}
-  .a-refresh:hover{background:#334155;}
-  table{width:100%;border-collapse:collapse;}
-  th{text-align:left;padding:11px 20px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #1e293b;}
-  td{padding:12px 20px;font-size:13px;border-bottom:1px solid #0d1117;}
-  tr:last-child td{border:none;}
-  tr:hover td{background:#1a1a2e;}
-  .a-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
-  .a-badge-free{background:#1e293b;color:#64748b;}
-  .a-badge-premium{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;}
-  .a-badge-pending{background:#854d0e;color:#fde68a;}
-  .a-badge-approved{background:#14532d;color:#86efac;}
-  .a-badge-rejected{background:#7f1d1d;color:#fca5a5;}
-  .a-empty{text-align:center;padding:48px;color:#475569;}
-  /* ── Payment actions ── */
-  .a-act-approve{background:#16a34a;border:none;color:#fff;padding:6px 14px;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;}
-  .a-act-approve:hover{background:#15803d;}
-  .a-act-reject{background:#dc2626;border:none;color:#fff;padding:6px 14px;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600;margin-left:6px;}
-  .a-act-reject:hover{background:#b91c1c;}
-  /* ── Form ── */
-  .a-form-grid{display:grid;gap:16px;}
-  .a-field{display:flex;flex-direction:column;gap:6px;}
-  .a-label{font-size:12px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;}
-  .a-input{padding:11px 14px;background:#1e293b;border:1px solid #334155;border-radius:10px;color:#e2e8f0;font-size:14px;outline:none;width:100%;}
-  .a-input:focus{border-color:#6366f1;}
-  .a-btn-primary{padding:11px 20px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-top:4px;}
-  .a-btn-primary:hover{opacity:.9;}
-  .a-btn-primary:disabled{opacity:.5;cursor:default;}
-  .a-msg-ok{color:#4ade80;font-size:13px;margin-top:8px;}
-  .a-msg-err{color:#f87171;font-size:13px;margin-top:8px;}
-  .a-section-title{font-size:15px;font-weight:700;color:#e2e8f0;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #1e293b;}
-  .a-sep{height:1px;background:#1e293b;margin:20px 0;}
-  .a-hint{font-size:12px;color:#475569;margin-top:4px;}
-  /* ── Responsive ── */
-  @media(max-width:700px){
-    .a-sidebar{transform:translateX(-100%);}
-    .a-sidebar.open{transform:translateX(0);}
-    .a-main{margin-left:0;}
-    .a-hamburger{display:flex;}
-    .a-overlay{display:block!important;}
+const planLabel: Record<string, string> = { monthly: "Bulanan", quarterly: "3 Bulan", yearly: "Tahunan" };
+
+function formatRp(n: number) { return `Rp ${n.toLocaleString("id-ID")}`; }
+function formatDate(s: string | null) {
+  if (!s) return "-";
+  return new Date(s).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+const inputStyle: React.CSSProperties = {
+  width: "100%", padding: "10px 14px", borderRadius: 10,
+  border: "1.5px solid var(--border-color, #e8e4ff)",
+  background: "var(--card-bg, white)", color: "var(--text-primary, #1a1a2e)",
+  fontSize: "0.9rem", outline: "none", boxSizing: "border-box",
+};
+const thStyle: React.CSSProperties = {
+  padding: "10px 14px", textAlign: "left", fontWeight: 600, fontSize: "0.75rem",
+  textTransform: "uppercase", letterSpacing: "0.05em",
+  color: "var(--text-muted, #888)", borderBottom: "2px solid var(--border-color, #eee)",
+  background: "var(--card-bg, white)",
+};
+const tdStyle: React.CSSProperties = { padding: "10px 14px", borderBottom: "1px solid var(--border-color, #f0f0f0)", verticalAlign: "middle" };
+const statusBadge = (s: string): React.CSSProperties => ({
+  display: "inline-block", padding: "3px 10px", borderRadius: 99, fontSize: "0.73rem", fontWeight: 700,
+  background: s === "confirmed" ? "#d1fae5" : s === "rejected" ? "#fee2e2" : "#fef3c7",
+  color: s === "confirmed" ? "#065f46" : s === "rejected" ? "#991b1b" : "#92400e",
+});
+const actionBtn = (color: "green" | "red" | "purple" | "gray"): React.CSSProperties => ({
+  padding: "5px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: "0.78rem", fontWeight: 700, marginRight: 4,
+  background: color === "green" ? "#10b981" : color === "red" ? "#ef4444" : color === "purple" ? "linear-gradient(135deg,#7c3aed,#db2777)" : "#e5e7eb",
+  color: color === "gray" ? "#374151" : "white",
+});
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return <div style={{ background: "var(--card-bg,white)", borderRadius: 16, border: "1.5px solid var(--border-color,#e8e4ff)", ...style }}>{children}</div>;
+}
+function SectionTitle({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <h1 style={{ margin: 0, fontSize: "1.55rem", fontWeight: 900, color: "var(--text-primary)" }}>{title}</h1>
+      {sub && <p style={{ margin: "6px 0 0", color: "var(--text-muted)", fontSize: "0.88rem" }}>{sub}</p>}
+    </div>
+  );
+}
+
+export default function AdminPage() {
+  const [section, setSection] = useState<Section>("dashboard");
+  const [pendingCount, setPendingCount] = useState(0);
+  const [accessError, setAccessError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { isLoaded, isSignedIn } = useAuth();
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) { if (isLoaded) setLoading(false); return; }
+    fetch("/api/admin/stats", { credentials: "include" })
+      .then(r => {
+        if (!r.ok) { setAccessError(r.status === 403 ? "Akses ditolak. Kamu bukan admin. Set ADMIN_USER_IDS di environment." : "Gagal terhubung ke server."); setLoading(false); return null; }
+        return r.json();
+      })
+      .then(d => { if (d) { setPendingCount(d.pendingPayments); setLoading(false); } });
+  }, [isLoaded, isSignedIn]);
+
+  if (!isLoaded || loading) {
+    return (
+      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "var(--primary-bg)" }}>
+        <div style={{ textAlign: "center" }}><div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div><div style={{ color: "var(--text-muted)" }}>Memuat Admin Panel...</div></div>
+      </div>
+    );
   }
-  .a-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40;}
-  `;
 
-  export default function AdminPage() {
-    const [authed, setAuthed] = useState(false);
-    const [savedPass, setSavedPass] = useState(() => sessionStorage.getItem("nx-admin-pass") || "");
-    const [loginPass, setLoginPass] = useState("");
-    const [loginErr, setLoginErr] = useState("");
-    const [loginLoading, setLoginLoading] = useState(false);
-    const [menu, setMenu] = useState<Menu>("stats");
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-
-    // Stats
-    const [stats, setStats] = useState<Stats|null>(null);
-    const [statsLoading, setStatsLoading] = useState(false);
-
-    // Payments
-    const [payments, setPayments] = useState<Payment[]>([]);
-    const [payLoading, setPayLoading] = useState(false);
-    const [actLoading, setActLoading] = useState<number|null>(null);
-
-    // Config/Settings
-    const [cfg, setCfg] = useState<Config>({ premiumPrice:10000, dailyFreeLimit:20, qrisUrl:"", danaNumber:"", danaName:"" });
-    const [cfgLoading, setCfgLoading] = useState(false);
-    const [cfgMsg, setCfgMsg] = useState("");
-    const [cfgErr, setCfgErr] = useState("");
-
-    // Change password
-    const [cpOld, setCpOld] = useState(""); const [cpNew, setCpNew] = useState(""); const [cpNew2, setCpNew2] = useState("");
-    const [cpLoading, setCpLoading] = useState(false); const [cpMsg, setCpMsg] = useState(""); const [cpErr, setCpErr] = useState("");
-
-    const bp = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
-    const pendingCount = payments.filter(p => p.status === "pending").length;
-
-    const doAuth = async (p: string) => {
-      setLoginLoading(true); setLoginErr("");
-      try {
-        const r = await fetch(`${bp}/api/admin-stats?pass=${encodeURIComponent(p)}`);
-        if (r.status === 403) { setLoginErr("Password salah!"); return false; }
-        const d = await r.json();
-        setStats(d); setAuthed(true);
-        sessionStorage.setItem("nx-admin-pass", p); setSavedPass(p);
-        return true;
-      } catch { setLoginErr("Gagal terhubung ke server"); return false; }
-      finally { setLoginLoading(false); }
-    };
-
-    useEffect(() => { if (savedPass) doAuth(savedPass); }, []);
-
-    const loadStats = async () => {
-      setStatsLoading(true);
-      try { const r = await fetch(`${bp}/api/admin-stats?pass=${encodeURIComponent(savedPass)}`); setStats(await r.json()); }
-      catch {} finally { setStatsLoading(false); }
-    };
-
-    const loadPayments = async () => {
-      setPayLoading(true);
-      try { const r = await fetch(`${bp}/api/admin-premium?pass=${encodeURIComponent(savedPass)}`); const d = await r.json(); setPayments(d.payments||[]); }
-      catch {} finally { setPayLoading(false); }
-    };
-
-    const loadConfig = async () => {
-      setCfgLoading(true);
-      try { const r = await fetch(`${bp}/api/admin-config?pass=${encodeURIComponent(savedPass)}`); const d = await r.json(); if(d.config) setCfg(d.config); }
-      catch {} finally { setCfgLoading(false); }
-    };
-
-    useEffect(() => {
-      if (!authed) return;
-      if (menu === "payments") loadPayments();
-      if (menu === "settings") loadConfig();
-    }, [menu, authed]);
-
-    const actPayment = async (id: number, action: string) => {
-      setActLoading(id);
-      try {
-        await fetch(`${bp}/api/admin-premium?pass=${encodeURIComponent(savedPass)}`, {
-          method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ paymentId: id, action }),
-        });
-        await loadPayments();
-      } catch {} finally { setActLoading(null); }
-    };
-
-    const saveConfig = async (e: React.FormEvent) => {
-      e.preventDefault(); setCfgMsg(""); setCfgErr(""); setCfgLoading(true);
-      try {
-        const r = await fetch(`${bp}/api/admin-config?pass=${encodeURIComponent(savedPass)}`, {
-          method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ premiumPrice: Number(cfg.premiumPrice), dailyFreeLimit: Number(cfg.dailyFreeLimit), qrisUrl: cfg.qrisUrl, danaNumber: cfg.danaNumber, danaName: cfg.danaName }),
-        });
-        if (r.ok) setCfgMsg("✅ Pengaturan berhasil disimpan!"); else setCfgErr("Gagal menyimpan");
-      } catch { setCfgErr("Gagal menyimpan"); } finally { setCfgLoading(false); }
-    };
-
-    const changePass = async (e: React.FormEvent) => {
-      e.preventDefault(); setCpMsg(""); setCpErr("");
-      if (cpNew !== cpNew2) { setCpErr("Password baru tidak cocok!"); return; }
-      if (cpNew.length < 6) { setCpErr("Minimal 6 karakter"); return; }
-      setCpLoading(true);
-      try {
-        const r = await fetch(`${bp}/api/admin-change-pass`, {
-          method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ currentPass: cpOld, newPass: cpNew }),
-        });
-        const d = await r.json();
-        if (!r.ok) { setCpErr(d.error||"Gagal"); return; }
-        setCpMsg("✅ Password berhasil diganti!");
-        sessionStorage.setItem("nx-admin-pass", cpNew); setSavedPass(cpNew);
-        setCpOld(""); setCpNew(""); setCpNew2("");
-      } catch { setCpErr("Gagal terhubung"); } finally { setCpLoading(false); }
-    };
-
-    const today = stats?.users.filter(u => new Date(u.registeredAt).toDateString() === new Date().toDateString()).length ?? 0;
-    const thisWeek = stats?.users.filter(u => (Date.now()-new Date(u.registeredAt).getTime()) < 7*864e5).length ?? 0;
-    const premiumCount = stats?.users.filter(u => u.isPremium).length ?? 0;
-
-    const logout = () => { sessionStorage.removeItem("nx-admin-pass"); setAuthed(false); setStats(null); setSavedPass(""); setLoginPass(""); };
-
-    if (!authed) return (
-      <>
-        <style>{CSS}</style>
-        <div style={{minHeight:"100vh",background:"#070711",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-          <div className="a-login-wrap" style={{width:"100%"}}>
-            <div style={{textAlign:"center",marginBottom:28}}>
-              <div style={{width:56,height:56,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,margin:"0 auto 12px"}}>🧠</div>
-              <div style={{fontSize:22,fontWeight:800,color:"#fff"}}>Nixx AI Admin</div>
-              <div style={{fontSize:13,color:"#475569",marginTop:4}}>Panel manajemen khusus admin</div>
+  if (!isSignedIn || accessError) {
+    return (
+      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "var(--primary-bg)" }}>
+        <div style={{ textAlign: "center", maxWidth: 400, padding: 24 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>{!isSignedIn ? "🔐" : "🚫"}</div>
+          <div style={{ fontWeight: 700, fontSize: "1.1rem", marginBottom: 12 }}>{!isSignedIn ? "Login diperlukan" : accessError}</div>
+          {!isSignedIn && <Link to="/sign-in" style={{ color: "var(--accent)", fontWeight: 600 }}>Login sekarang →</Link>}
+          {isSignedIn && accessError && (
+            <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: 8 }}>
+              Tambahkan user ID Clerk kamu di environment variable <code>ADMIN_USER_IDS</code>.<br />
+              <Link to="/chat" style={{ color: "var(--accent)", marginTop: 8, display: "inline-block" }}>← Kembali ke Chat</Link>
             </div>
-            <div className="a-card">
-              <div className="a-card-title">🔐 Login Admin</div>
-              <div className="a-card-sub">Masukkan password admin untuk masuk</div>
-              <form onSubmit={async e => { e.preventDefault(); await doAuth(loginPass); }}>
-                <div className="a-field">
-                  <label className="a-label">Password</label>
-                  <input type="password" className="a-input" value={loginPass} onChange={e=>setLoginPass(e.target.value)} placeholder="••••••••" autoFocus />
-                </div>
-                <button className="a-btn-primary" type="submit" disabled={loginLoading}>{loginLoading?"Memeriksa...":"Masuk ke Admin Panel"}</button>
-                {loginErr && <div className="a-msg-err">{loginErr}</div>}
-              </form>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--primary-bg)" }}>
+      {/* Sidebar */}
+      <div style={{
+        width: 240, minHeight: "100vh", position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 100,
+        background: "linear-gradient(180deg,#0d0d1f 0%,#1a0a2e 100%)",
+        display: "flex", flexDirection: "column", boxShadow: "4px 0 24px rgba(0,0,0,0.25)",
+      }}>
+        {/* Logo */}
+        <div style={{ padding: "24px 20px 20px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ fontSize: 30 }}>🧠</div>
+            <div>
+              <div style={{ fontWeight: 900, fontSize: "1.05rem", color: "white" }}>Nixx AI</div>
+              <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.45)", marginTop: 1 }}>⚡ Admin Panel</div>
             </div>
           </div>
         </div>
-      </>
-    );
 
-    return (
-      <>
-        <style>{CSS}</style>
-        <div className="a-root">
-          {/* Overlay mobile */}
-          <div className="a-overlay" onClick={() => setSidebarOpen(false)} style={{display: sidebarOpen ? "block" : "none"}} />
-
-          {/* Sidebar */}
-          <aside className={`a-sidebar${sidebarOpen ? " open" : ""}`}>
-            <div className="a-logo">
-              <div className="a-logo-icon">🧠</div>
-              <div><div className="a-logo-text">Nixx AI</div><div className="a-logo-sub">Admin Panel</div></div>
-            </div>
-            <nav className="a-nav">
-              {([
-                { id:"stats", icon:"📊", label:"Statistik" },
-                { id:"payments", icon:"💳", label:"Pembayaran", badge: pendingCount > 0 ? pendingCount : 0 },
-                { id:"settings", icon:"⚙️", label:"Pengaturan" },
-              ] as {id:Menu;icon:string;label:string;badge?:number}[]).map(item => (
-                <button key={item.id} className={`a-nav-item${menu===item.id?" active":""}`}
-                  onClick={() => { setMenu(item.id); setSidebarOpen(false); }}>
-                  <span className="a-nav-icon">{item.icon}</span>
-                  <span>{item.label}</span>
-                  {item.badge ? <span className="a-nav-badge">{item.badge}</span> : null}
-                </button>
-              ))}
-            </nav>
-            <div className="a-sidebar-footer">
-              <button className="a-logout-btn" onClick={logout}>🚪 Keluar</button>
-            </div>
-          </aside>
-
-          {/* Main content */}
-          <main className="a-main">
-            <div className="a-topbar">
-              <button className="a-hamburger" onClick={() => setSidebarOpen(v=>!v)}>☰</button>
-              <div>
-                <div className="a-page-title">
-                  {menu==="stats"?"📊 Statistik":menu==="payments"?"💳 Pembayaran":"⚙️ Pengaturan"}
-                </div>
-                <div className="a-page-sub">
-                  {menu==="stats"?"Data pengguna terdaftar":menu==="payments"?"Kelola permintaan upgrade premium":"Atur harga, QRIS, Dana & password"}
-                </div>
-              </div>
-            </div>
-
-            {/* ─── STATS ─── */}
-            {menu === "stats" && (
-              <>
-                <div className="a-grid3">
-                  {[
-                    {num:stats?.total??0, lbl:"Total Pengguna", icon:"👥"},
-                    {num:today, lbl:"Daftar Hari Ini", icon:"📅"},
-                    {num:thisWeek, lbl:"7 Hari Terakhir", icon:"📈"},
-                    {num:premiumCount, lbl:"User Premium", icon:"👑"},
-                  ].map((s,i) => (
-                    <div key={i} className="a-stat">
-                      <div style={{fontSize:24,marginBottom:4}}>{s.icon}</div>
-                      <div className="a-stat-num">{s.num}</div>
-                      <div className="a-stat-lbl">{s.lbl}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="a-table-card">
-                  <div className="a-table-hd">
-                    <span className="a-table-ttl">Daftar Pengguna</span>
-                    <button className="a-refresh" onClick={loadStats}>{statsLoading?"⏳":"🔄 Refresh"}</button>
-                  </div>
-                  {!stats?.users?.length ? <div className="a-empty">Belum ada pengguna</div> : (
-                    <table><thead><tr><th>#</th><th>Username</th><th>Email</th><th>Status</th><th>Tanggal Daftar</th></tr></thead>
-                    <tbody>
-                      {[...(stats.users)].reverse().map((u,i) => (
-                        <tr key={u.id}>
-                          <td>{(stats.total)-i}</td>
-                          <td style={{fontWeight:600}}>{u.username||"-"}</td>
-                          <td style={{color:"#94a3b8"}}>{u.email}</td>
-                          <td><span className={`a-badge ${u.isPremium?"a-badge-premium":"a-badge-free"}`}>{u.isPremium?"👑 Premium":"Gratis"}</span></td>
-                          <td style={{color:"#64748b",fontSize:12}}>{new Date(u.registeredAt).toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</td>
-                        </tr>
-                      ))}
-                    </tbody></table>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* ─── PAYMENTS ─── */}
-            {menu === "payments" && (
-              <div className="a-table-card">
-                <div className="a-table-hd">
-                  <span className="a-table-ttl">Permintaan Upgrade Premium</span>
-                  <button className="a-refresh" onClick={loadPayments}>{payLoading?"⏳":"🔄 Refresh"}</button>
-                </div>
-                {!payments.length ? <div className="a-empty">Belum ada permintaan pembayaran</div> : (
-                  <table><thead><tr><th>Nama</th><th>Email</th><th>No HP</th><th>Ref Bayar</th><th>Tgl</th><th>Status</th><th>Aksi</th></tr></thead>
-                  <tbody>
-                    {[...payments].reverse().map(p => (
-                      <tr key={p.id}>
-                        <td style={{fontWeight:600}}>{p.name}</td>
-                        <td style={{color:"#94a3b8",fontSize:12}}>{p.email}</td>
-                        <td style={{color:"#94a3b8"}}>{p.phone}</td>
-                        <td style={{color:"#64748b",fontSize:12}}>{p.payRef||"-"}</td>
-                        <td style={{color:"#64748b",fontSize:12}}>{new Date(p.createdAt).toLocaleDateString("id-ID")}</td>
-                        <td><span className={`a-badge a-badge-${p.status}`}>{p.status==="pending"?"⏳ Pending":p.status==="approved"?"✅ Disetujui":"❌ Ditolak"}</span></td>
-                        <td>
-                          {p.status==="pending" && (
-                            <>
-                              <button className="a-act-approve" disabled={actLoading===p.id} onClick={()=>actPayment(p.id,"approved")}>✓ Setujui</button>
-                              <button className="a-act-reject" disabled={actLoading===p.id} onClick={()=>actPayment(p.id,"rejected")}>✗ Tolak</button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody></table>
+        {/* Menu */}
+        <nav style={{ flex: 1, padding: "14px 10px" }}>
+          {MENU.map(item => {
+            const active = section === item.id;
+            return (
+              <button key={item.id} onClick={() => setSection(item.id)} style={{
+                display: "flex", alignItems: "center", gap: 10, width: "100%",
+                padding: "11px 14px", borderRadius: 12, border: "none", cursor: "pointer", marginBottom: 3,
+                background: active ? "rgba(124,58,237,0.2)" : "transparent",
+                color: active ? "#c4b5fd" : "rgba(255,255,255,0.55)",
+                fontWeight: active ? 700 : 400, fontSize: "0.88rem", textAlign: "left",
+                borderLeft: active ? "3px solid #a855f7" : "3px solid transparent",
+                transition: "all 0.15s",
+              }}>
+                <span style={{ fontSize: 17 }}>{item.icon}</span>
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {item.id === "payments" && pendingCount > 0 && (
+                  <span style={{ background: "#ef4444", color: "white", borderRadius: 99, fontSize: "0.68rem", fontWeight: 800, padding: "1px 7px" }}>{pendingCount}</span>
                 )}
-              </div>
-            )}
+              </button>
+            );
+          })}
+        </nav>
 
-            {/* ─── SETTINGS ─── */}
-            {menu === "settings" && (
-              <div style={{display:"grid",gap:20}}>
-                {/* Pembayaran Config */}
-                <div className="a-card">
-                  <div className="a-section-title">💳 Pengaturan Pembayaran</div>
-                  <form onSubmit={saveConfig}>
-                    <div className="a-form-grid">
-                      <div className="a-field">
-                        <label className="a-label">Harga Premium (Rp)</label>
-                        <input type="number" className="a-input" value={cfg.premiumPrice} onChange={e=>setCfg(v=>({...v,premiumPrice:+e.target.value}))} placeholder="10000" />
-                        <div className="a-hint">Harga yang ditampilkan ke pengguna</div>
-                      </div>
-                      <div className="a-field">
-                        <label className="a-label">Limit Pesan Gratis / Hari</label>
-                        <input type="number" className="a-input" value={cfg.dailyFreeLimit} onChange={e=>setCfg(v=>({...v,dailyFreeLimit:+e.target.value}))} placeholder="20" />
-                        <div className="a-hint">User gratis bisa kirim berapa pesan per hari</div>
-                      </div>
-                      <div className="a-sep" style={{margin:"4px 0"}} />
-                      <div className="a-field">
-                        <label className="a-label">Link / URL QRIS</label>
-                        <input type="url" className="a-input" value={cfg.qrisUrl} onChange={e=>setCfg(v=>({...v,qrisUrl:e.target.value}))} placeholder="https://link-gambar-qris-kamu.jpg" />
-                        <div className="a-hint">URL gambar QRIS Dana/GoPay/dll yang ditampilkan ke user</div>
-                      </div>
-                      <div className="a-field">
-                        <label className="a-label">Nomor Dana</label>
-                        <input type="text" className="a-input" value={cfg.danaNumber} onChange={e=>setCfg(v=>({...v,danaNumber:e.target.value}))} placeholder="08xxxxxxxxxx" />
-                      </div>
-                      <div className="a-field">
-                        <label className="a-label">Nama Pemilik Dana</label>
-                        <input type="text" className="a-input" value={cfg.danaName} onChange={e=>setCfg(v=>({...v,danaName:e.target.value}))} placeholder="Nama Kamu" />
-                      </div>
-                    </div>
-                    <button className="a-btn-primary" type="submit" disabled={cfgLoading} style={{marginTop:16}}>{cfgLoading?"Menyimpan...":"Simpan Pengaturan"}</button>
-                    {cfgMsg && <div className="a-msg-ok">{cfgMsg}</div>}
-                    {cfgErr && <div className="a-msg-err">{cfgErr}</div>}
-                  </form>
-                </div>
-
-                {/* Change Password */}
-                <div className="a-card">
-                  <div className="a-section-title">🔑 Ganti Password Admin</div>
-                  <form onSubmit={changePass}>
-                    <div className="a-form-grid">
-                      <div className="a-field">
-                        <label className="a-label">Password Lama</label>
-                        <input type="password" className="a-input" value={cpOld} onChange={e=>setCpOld(e.target.value)} placeholder="Password sekarang" />
-                      </div>
-                      <div className="a-field">
-                        <label className="a-label">Password Baru</label>
-                        <input type="password" className="a-input" value={cpNew} onChange={e=>setCpNew(e.target.value)} placeholder="Minimal 6 karakter" />
-                      </div>
-                      <div className="a-field">
-                        <label className="a-label">Konfirmasi Password Baru</label>
-                        <input type="password" className="a-input" value={cpNew2} onChange={e=>setCpNew2(e.target.value)} placeholder="Ulangi password baru" />
-                      </div>
-                    </div>
-                    <button className="a-btn-primary" type="submit" disabled={cpLoading||!cpOld||!cpNew||!cpNew2} style={{marginTop:16}}>{cpLoading?"Menyimpan...":"Simpan Password Baru"}</button>
-                    {cpMsg && <div className="a-msg-ok">{cpMsg}</div>}
-                    {cpErr && <div className="a-msg-err">{cpErr}</div>}
-                  </form>
-                </div>
-              </div>
-            )}
-          </main>
+        {/* Footer */}
+        <div style={{ padding: "14px 20px", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+          <Link to="/chat" style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.8rem", textDecoration: "none", display: "flex", alignItems: "center", gap: 6, transition: "color 0.15s" }}>
+            ← Kembali ke Chat
+          </Link>
         </div>
-      </>
-    );
-  }
-  
+      </div>
+
+      {/* Content area */}
+      <div style={{ marginLeft: 240, flex: 1, padding: "32px 36px", minHeight: "100vh" }}>
+        {section === "dashboard" && <DashboardSection onPendingUpdate={setPendingCount} />}
+        {section === "payments" && <PaymentsSection onUpdate={setPendingCount} />}
+        {section === "users" && <UsersSection />}
+        {section === "settings" && <SettingsSection />}
+      </div>
+    </div>
+  );
+}
+
+function DashboardSection({ onPendingUpdate }: { onPendingUpdate: (n: number) => void }) {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/admin/stats", { credentials: "include" }).then(r => r.json()),
+      fetch("/api/admin/payments", { credentials: "include" }).then(r => r.json()),
+    ]).then(([s, p]) => { setStats(s); setPayments((p as Payment[]).slice(0, 8)); onPendingUpdate(s.pendingPayments); });
+  }, []);
+
+  return (
+    <div>
+      <SectionTitle title="📊 Dashboard" sub="Ringkasan aktivitas Nixx AI" />
+      {stats && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px,1fr))", gap: 16, marginBottom: 32 }}>
+          {[
+            { icon: "👥", label: "Total Pengguna", value: stats.totalUsers, color: "#7c3aed" },
+            { icon: "👑", label: "Premium Users", value: stats.premiumUsers, color: "#f59e0b" },
+            { icon: "💳", label: "Pending Pembayaran", value: stats.pendingPayments, color: "#ef4444" },
+            { icon: "💬", label: "Pesan Hari Ini", value: stats.todayMessages, color: "#10b981" },
+          ].map(c => (
+            <Card key={c.label} style={{ padding: "22px 24px" }}>
+              <div style={{ fontSize: 26, marginBottom: 8 }}>{c.icon}</div>
+              <div style={{ fontSize: "1.9rem", fontWeight: 900, color: c.color }}>{c.value.toLocaleString()}</div>
+              <div style={{ color: "var(--text-muted)", fontSize: "0.82rem", marginTop: 4 }}>{c.label}</div>
+            </Card>
+          ))}
+        </div>
+      )}
+      {payments.length > 0 && (
+        <Card style={{ overflow: "hidden" }}>
+          <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--border-color,#eee)", fontWeight: 700, fontSize: "0.95rem" }}>Pembayaran Terbaru</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+              <thead><tr>{["User", "Plan", "Harga", "Status", "Tanggal"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+              <tbody>
+                {payments.map(p => (
+                  <tr key={p.id}>
+                    <td style={tdStyle}><div style={{ fontWeight: 600 }}>{p.userEmail ?? p.userId.slice(0, 12)}</div><div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{p.userName ?? ""}</div></td>
+                    <td style={tdStyle}>{planLabel[p.planId] ?? p.planId}</td>
+                    <td style={{ ...tdStyle, fontWeight: 700 }}>{formatRp(p.amountRp)}</td>
+                    <td style={tdStyle}><span style={statusBadge(p.status)}>{p.status === "confirmed" ? "✅ Disetujui" : p.status === "rejected" ? "❌ Ditolak" : "⏳ Pending"}</span></td>
+                    <td style={{ ...tdStyle, color: "var(--text-muted)", fontSize: "0.8rem" }}>{formatDate(p.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function PaymentsSection({ onUpdate }: { onUpdate: (n: number) => void }) {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [filter, setFilter] = useState("pending");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<number | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch("/api/admin/payments", { credentials: "include" }).then(r => r.json()).then(d => {
+      setPayments(d as Payment[]);
+      setLoading(false);
+      onUpdate((d as Payment[]).filter((p: Payment) => p.status === "pending").length);
+    });
+  }, [onUpdate]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const act = async (id: number, action: "approve" | "reject") => {
+    if (!confirm(action === "approve" ? "Approve pembayaran ini? User akan diaktifkan premium." : "Tolak pembayaran ini?")) return;
+    setBusy(id);
+    await fetch(`/api/admin/payments/${id}`, { method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+    setBusy(null); load();
+  };
+
+  const filtered = filter === "all" ? payments : payments.filter(p => p.status === filter);
+
+  return (
+    <div>
+      <SectionTitle title="💳 Pembayaran" sub="Kelola semua permintaan upgrade premium" />
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+        {[["all", "Semua"], ["pending", "Pending"], ["confirmed", "Disetujui"], ["rejected", "Ditolak"]].map(([v, l]) => (
+          <button key={v} onClick={() => setFilter(v)} style={{
+            padding: "6px 18px", borderRadius: 99, border: "1.5px solid var(--border-color,#e8e4ff)", cursor: "pointer",
+            fontWeight: filter === v ? 700 : 400, fontSize: "0.82rem",
+            background: filter === v ? "linear-gradient(135deg,#7c3aed,#db2777)" : "var(--card-bg,white)",
+            color: filter === v ? "white" : "var(--text-primary)",
+          }}>
+            {l}{v === "pending" && payments.filter(p => p.status === "pending").length > 0 ? ` (${payments.filter(p => p.status === "pending").length})` : ""}
+          </button>
+        ))}
+      </div>
+      <Card style={{ overflow: "hidden" }}>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>⏳ Memuat...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Tidak ada pembayaran {filter === "all" ? "" : `berstatus "${filter}"`}</div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.84rem" }}>
+              <thead><tr>{["#", "User", "Plan", "Harga", "Dana Number", "Catatan", "Status", "Tanggal", "Aksi"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+              <tbody>
+                {filtered.map(p => (
+                  <tr key={p.id} style={{ background: p.status === "pending" ? "rgba(124,58,237,0.035)" : undefined }}>
+                    <td style={{ ...tdStyle, color: "var(--text-muted)", fontSize: "0.8rem" }}>{p.id}</td>
+                    <td style={tdStyle}><div style={{ fontWeight: 600 }}>{p.userEmail ?? "-"}</div><div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>{p.userName ?? ""}</div></td>
+                    <td style={tdStyle}><span style={{ background: "rgba(124,58,237,0.1)", color: "#7c3aed", borderRadius: 6, padding: "2px 8px", fontSize: "0.78rem", fontWeight: 700 }}>{planLabel[p.planId] ?? p.planId}</span></td>
+                    <td style={{ ...tdStyle, fontWeight: 800, color: "#059669" }}>{formatRp(p.amountRp)}</td>
+                    <td style={tdStyle}><code style={{ fontSize: "0.78rem", background: "rgba(0,0,0,0.05)", padding: "2px 6px", borderRadius: 4 }}>{p.danaNumber ?? "-"}</code></td>
+                    <td style={{ ...tdStyle, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-muted)", fontSize: "0.8rem" }} title={p.note ?? ""}>{p.note ?? "-"}</td>
+                    <td style={tdStyle}><span style={statusBadge(p.status)}>{p.status === "confirmed" ? "✅ OK" : p.status === "rejected" ? "❌ Ditolak" : "⏳ Pending"}</span></td>
+                    <td style={{ ...tdStyle, color: "var(--text-muted)", fontSize: "0.78rem", whiteSpace: "nowrap" }}>{formatDate(p.createdAt)}</td>
+                    <td style={tdStyle}>
+                      {p.status === "pending" ? (
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button style={actionBtn("green")} onClick={() => act(p.id, "approve")} disabled={busy === p.id}>✓ Approve</button>
+                          <button style={actionBtn("red")} onClick={() => act(p.id, "reject")} disabled={busy === p.id}>✗ Tolak</button>
+                        </div>
+                      ) : <span style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function UsersSection() {
+  const [userList, setUserList] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [daysMap, setDaysMap] = useState<Record<string, string>>({});
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch("/api/admin/users", { credentials: "include" }).then(r => r.json()).then(d => { setUserList(d as AdminUser[]); setLoading(false); });
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = async (userId: string, isPremium: boolean) => {
+    const days = isPremium ? (parseInt(daysMap[userId] ?? "30", 10) || 30) : 0;
+    setBusy(userId);
+    await fetch(`/api/admin/users/${userId}/premium`, { method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isPremium, days }) });
+    setBusy(null); load();
+  };
+
+  const filtered = userList.filter(u => !search || u.email.toLowerCase().includes(search.toLowerCase()) || (u.name ?? "").toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div>
+      <SectionTitle title="👑 Premium Users" sub="Kelola status premium pengguna secara manual" />
+      <div style={{ marginBottom: 16 }}>
+        <input style={{ ...inputStyle, maxWidth: 340 }} placeholder="🔍  Cari email atau nama..." value={search} onChange={e => setSearch(e.target.value)} />
+      </div>
+      <Card style={{ overflow: "hidden" }}>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>⏳ Memuat...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Tidak ada user ditemukan</div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.84rem" }}>
+              <thead><tr>{["Email", "Nama", "Status", "Premium Hingga", "Durasi (hari)", "Aksi"].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr></thead>
+              <tbody>
+                {filtered.map(u => (
+                  <tr key={u.id}>
+                    <td style={tdStyle}><div style={{ fontWeight: 600 }}>{u.email}</div><div style={{ fontSize: "0.73rem", color: "var(--text-muted)" }}>{u.id.slice(0, 20)}...</div></td>
+                    <td style={tdStyle}>{u.name ?? <span style={{ color: "var(--text-muted)" }}>—</span>}</td>
+                    <td style={tdStyle}><span style={statusBadge(u.isPremium ? "confirmed" : "rejected")}>{u.isPremium ? "👑 Premium" : "Free"}</span></td>
+                    <td style={{ ...tdStyle, fontSize: "0.78rem", color: "var(--text-muted)" }}>{formatDate(u.premiumUntil)}</td>
+                    <td style={{ ...tdStyle, width: 130 }}>
+                      {!u.isPremium && (
+                        <input type="number" min="1" max="9999" style={{ ...inputStyle, width: 90, padding: "5px 8px", fontSize: "0.85rem" }}
+                          placeholder="30" value={daysMap[u.id] ?? "30"}
+                          onChange={e => setDaysMap(m => ({ ...m, [u.id]: e.target.value }))} />
+                      )}
+                    </td>
+                    <td style={tdStyle}>
+                      {u.isPremium
+                        ? <button style={actionBtn("red")} onClick={() => toggle(u.id, false)} disabled={busy === u.id}>Cabut Premium</button>
+                        : <button style={actionBtn("purple")} onClick={() => toggle(u.id, true)} disabled={busy === u.id}>👑 Set Premium</button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function SettingsSection() {
+  const DEF: AppSettings = { qris_link: "", dana_number: "", dana_name: "Nixx AI", price_monthly: "15000", price_quarterly: "40000", price_yearly: "120000", daily_limit_free: "20", premium_model_ids: "" };
+  const [form, setForm] = useState<AppSettings>(DEF);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => { fetch("/api/admin/settings", { credentials: "include" }).then(r => r.json()).then(d => { setForm({ ...DEF, ...d }); setLoading(false); }); }, []);
+
+  const save = async () => {
+    setSaving(true);
+    await fetch("/api/admin/settings", { method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000);
+  };
+
+  const set = (k: keyof AppSettings) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>⏳ Memuat...</div>;
+
+  return (
+    <div>
+      <SectionTitle title="⚙️ Pengaturan" sub="Konfigurasi sistem pembayaran, harga, dan fitur premium" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(380px,1fr))", gap: 24, marginBottom: 24 }}>
+        {/* Payment */}
+        <Card style={{ padding: 28 }}>
+          <div style={{ fontWeight: 800, fontSize: "1rem", marginBottom: 22, display: "flex", alignItems: "center", gap: 8 }}>
+            <span>💳</span> Pengaturan Pembayaran QRIS / Dana
+          </div>
+          {([
+            ["Link QRIS (URL gambar)", "qris_link", "text", "URL gambar QRIS Dana yang ditampilkan ke user"],
+            ["Nomor Dana", "dana_number", "text", "Nomor HP Dana (contoh: 0812-xxxx-xxxx)"],
+            ["Nama Rekening Dana", "dana_name", "text", "Nama penerima yang tampil saat konfirmasi"],
+          ] as [string, keyof AppSettings, string, string][]).map(([label, key, type, hint]) => (
+            <div key={key} style={{ marginBottom: 18 }}>
+              <label style={{ display: "block", fontWeight: 600, fontSize: "0.85rem", marginBottom: 6 }}>{label}</label>
+              <input type={type} style={inputStyle} value={form[key]} onChange={set(key)} placeholder={hint} />
+              <div style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginTop: 3 }}>{hint}</div>
+            </div>
+          ))}
+          {form.qris_link && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: 6 }}>Preview QRIS:</div>
+              <img src={form.qris_link} alt="QRIS" style={{ maxWidth: "100%", maxHeight: 220, borderRadius: 10, border: "1px solid var(--border-color,#eee)" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            </div>
+          )}
+        </Card>
+
+        {/* Premium */}
+        <Card style={{ padding: 28 }}>
+          <div style={{ fontWeight: 800, fontSize: "1rem", marginBottom: 22, display: "flex", alignItems: "center", gap: 8 }}>
+            <span>👑</span> Pengaturan Harga & Fitur Premium
+          </div>
+          {([
+            ["Harga Bulanan (Rp)", "price_monthly", "number", "Harga paket 1 bulan (contoh: 15000)"],
+            ["Harga 3 Bulan (Rp)", "price_quarterly", "number", "Harga paket 3 bulan (contoh: 40000)"],
+            ["Harga Tahunan (Rp)", "price_yearly", "number", "Harga paket 1 tahun (contoh: 120000)"],
+            ["Limit Chat Gratis / hari", "daily_limit_free", "number", "Jumlah pesan gratis per hari (contoh: 20)"],
+          ] as [string, keyof AppSettings, string, string][]).map(([label, key, type, hint]) => (
+            <div key={key} style={{ marginBottom: 18 }}>
+              <label style={{ display: "block", fontWeight: 600, fontSize: "0.85rem", marginBottom: 6 }}>{label}</label>
+              <input type={type} style={inputStyle} value={form[key]} onChange={set(key)} />
+              <div style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginTop: 3 }}>{hint}</div>
+            </div>
+          ))}
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ display: "block", fontWeight: 600, fontSize: "0.85rem", marginBottom: 6 }}>Model Premium (ID, pisah koma)</label>
+            <textarea style={{ ...inputStyle, height: 80, resize: "vertical" }} value={form.premium_model_ids} onChange={set("premium_model_ids")} placeholder="gpt4o,perplexity,gemini25v1,grok4fast,..." />
+            <div style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginTop: 3 }}>ID model yang hanya bisa digunakan pengguna premium</div>
+          </div>
+        </Card>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <button onClick={save} disabled={saving} style={{
+          padding: "12px 32px", borderRadius: 12, border: "none", cursor: saving ? "not-allowed" : "pointer",
+          background: "linear-gradient(135deg,#7c3aed,#db2777)", color: "white", fontWeight: 800, fontSize: "0.95rem", opacity: saving ? 0.7 : 1,
+        }}>{saving ? "⏳ Menyimpan..." : "💾 Simpan Pengaturan"}</button>
+        {saved && <span style={{ color: "#10b981", fontWeight: 700 }}>✅ Pengaturan berhasil disimpan!</span>}
+      </div>
+    </div>
+  );
+}
