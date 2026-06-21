@@ -213,11 +213,19 @@ function save(c: LocalConv[]) {
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
-.nx-toolbar{display:flex;align-items:center;gap:3px;padding:4px 0 5px}
-.nx-tb-btn{background:none;border:none;cursor:pointer;padding:5px 8px;border-radius:8px;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--nx-text-muted,#7b6fa0);transition:all .15s}
-.nx-tb-btn:hover{background:rgba(168,85,247,.12);color:#a855f7}
-.nx-tb-btn.on{color:#a855f7;background:rgba(168,85,247,.18)}
-.nx-tb-btn.rec{color:#ef4444;background:rgba(239,68,68,.12)}
+.nx-plus-btn{width:36px;height:36px;border-radius:50%;background:rgba(168,85,247,.15);border:1.5px solid rgba(168,85,247,.3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;color:#a855f7;transition:all .15s;flex-shrink:0}
+  .nx-plus-btn:hover{background:rgba(168,85,247,.28);transform:scale(1.08)}
+  .nx-plus-btn.open{background:rgba(168,85,247,.3);border-color:#a855f7;transform:rotate(45deg)}
+  .nx-attach-wrap{position:relative}
+  .nx-attach-menu{position:absolute;bottom:calc(100% + 10px);left:0;background:var(--nx-card-bg,#1e1a2e);border:1px solid var(--nx-border,#2d2550);border-radius:14px;padding:6px;min-width:210px;box-shadow:0 8px 28px rgba(0,0,0,.45);z-index:120;display:flex;flex-direction:column;gap:2px}
+  .nx-am-item{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;cursor:pointer;padding:10px 12px;border-radius:10px;font-size:13px;color:var(--nx-text,#f0eeff);transition:background .12s;text-align:left}
+  .nx-am-item:hover{background:rgba(168,85,247,.12);color:#a855f7}
+  .nx-am-item.on{color:#a855f7;background:rgba(168,85,247,.15)}
+  .nx-am-item.rec{color:#ef4444}
+  .nx-am-sep{height:1px;background:var(--nx-border,#2d2550);margin:3px 8px}
+  [data-theme="light"] .nx-attach-menu{background:#fff;border-color:#e8e4ff}
+  [data-theme="light"] .nx-am-item{color:#1a1a2e}
+  .nx-tb-btn{display:none}
 
 .nx-ap{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;margin-bottom:6px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.22)}
 .nx-ap-thumb{width:42px;height:42px;object-fit:cover;border-radius:7px;flex-shrink:0}
@@ -334,6 +342,7 @@ export default function DashboardPage() {
   const [showExport, setShowExport] = useState(false);
   const [imgMode, setImgMode] = useState(false);
     const [showCharModal, setShowCharModal] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
     const [customChars, setCustomChars] = useState<CustomChar[]>(() => loadChars());
     const [activeCharId, setActiveCharId] = useState<string | null>(null);
     const [charForm, setCharForm] = useState({ emoji: "🤖", name: "", persona: "" });
@@ -825,80 +834,80 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Toolbar */}
-            <div className="nx-toolbar">
-              {/* Mode Image Generation */}
-              <button
-                className={`nx-tb-btn${imgMode ? " img-on" : ""}`}
-                onClick={() => { setImgMode(v => !v); if (!imgMode) setTimeout(() => inputRef.current?.focus(), 50); }}
-                title="Buat gambar dari teks"
-              >
-                🖼️ <span>{imgMode ? "Mode Gambar ✓" : "Buat Gambar"}</span>
-              </button>
-
-              {/* Upload gambar / teks / PDF */}
-              <button className="nx-tb-btn" onClick={() => fileRef.current?.click()} title="Upload gambar, teks, atau PDF">
-                📎 <span>File</span>
-              </button>
+            {/* hidden inputs — tetap ada meski toolbar di-hide */}
               <input ref={fileRef} type="file"
                 accept=".txt,.md,.js,.ts,.tsx,.jsx,.json,.csv,.html,.css,.py,.java,.c,.cpp,.xml,.yaml,.yml,.sh,.sql,.pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.zip,.rar"
                 style={{ display: "none" }} onChange={onFile} />
-
-              {/* Upload audio */}
-              <button className="nx-tb-btn" onClick={() => audioFileRef.current?.click()} title="Upload file audio">
-                🎵 <span>Audio</span>
-              </button>
               <input ref={audioFileRef} type="file"
                 accept=".mp3,.wav,.ogg,.m4a,.aac,.webm,.flac,.opus"
                 style={{ display: "none" }} onChange={onAudioFile} />
 
-              {/* Mikrofon (STT) */}
-              <button className={`nx-tb-btn${listening ? " rec" : ""}`} onClick={toggleMic} title="Rekam suara">
-                {listening ? <><span className="recdot" />Stop</> : <>🎙️ Suara</>}
-              </button>
+            {/* Input Row: + button + textarea + kirim */}
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                {/* Tombol + (attach menu) */}
+                <div className="nx-attach-wrap">
+                  <button
+                    className={`nx-plus-btn${showAttachMenu ? " open" : ""}`}
+                    onClick={() => setShowAttachMenu(v => !v)}
+                    title="Lampiran & Fitur"
+                  >+</button>
+                  {showAttachMenu && (
+                    <div className="nx-attach-menu">
+                      {/* Buat Gambar */}
+                      <button className={`nx-am-item${imgMode ? " on" : ""}`} onClick={() => {
+                        setImgMode(v => !v); setShowAttachMenu(false);
+                        setTimeout(() => inputRef.current?.focus(), 50);
+                      }}>
+                        <span className="nx-am-icon">🖼️</span>
+                        <span>{imgMode ? "✓ Mode Gambar Aktif" : "Buat Gambar"}</span>
+                      </button>
+                      {/* Upload File */}
+                      <button className="nx-am-item" onClick={() => { fileRef.current?.click(); setShowAttachMenu(false); }}>
+                        <span className="nx-am-icon">📎</span><span>Upload File / Foto</span>
+                      </button>
+                      {/* Upload Audio */}
+                      <button className="nx-am-item" onClick={() => { audioFileRef.current?.click(); setShowAttachMenu(false); }}>
+                        <span className="nx-am-icon">🎵</span><span>Upload Audio</span>
+                      </button>
+                      {/* Mikrofon */}
+                      <button className={`nx-am-item${listening ? " rec" : ""}`} onClick={() => { toggleMic(); setShowAttachMenu(false); }}>
+                        <span className="nx-am-icon">{listening ? "⏹️" : "🎙️"}</span>
+                        <span>{listening ? "Stop Rekam" : "Rekam Suara"}</span>
+                      </button>
+                      <div className="nx-am-sep" />
+                      {/* Karakter */}
+                      <button className={`nx-am-item${activeCharId ? " on" : ""}`} onClick={() => { setShowCharModal(true); setShowAttachMenu(false); }}>
+                        <span className="nx-am-icon">🎭</span>
+                        <span>{activeCharId ? ([...PRESET_CHARS,...customChars].find(c=>c.id===activeCharId)?.name ?? "Karakter") : "Karakter AI"}</span>
+                      </button>
+                      <div className="nx-am-sep" />
+                      {/* Export */}
+                      <button className="nx-am-item" onClick={() => { exportTxt(); setShowAttachMenu(false); }}>
+                        <span className="nx-am-icon">📄</span><span>Export TXT</span>
+                      </button>
+                      <button className="nx-am-item" onClick={() => { exportPdf(); setShowAttachMenu(false); }}>
+                        <span className="nx-am-icon">🖨️</span><span>Export PDF</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-              {/* Karakter */}
-                <button
-                  className={`nx-tb-btn${activeCharId ? " on" : ""}`}
-                  onClick={() => setShowCharModal(true)}
-                  title="Pilih atau buat karakter AI"
-                >
-                  🎭 <span>{activeCharId ? ([...PRESET_CHARS,...customChars].find(c=>c.id===activeCharId)?.name ?? "Karakter") : "Karakter"}</span>
+                <textarea ref={inputRef} value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={onKey}
+                  placeholder={
+                    listening ? "🎤 Sedang mendengarkan..." :
+                      imgMode ? "🖼️ Deskripsikan gambar yang mau dibuat..." :
+                      pendingFile ? `Tanya tentang ${pendingFile.name}...` :
+                        "Ketik pesan Anda di sini..."
+                  }
+                  disabled={busy} className="nx-input" rows={1} style={{ flex: 1 }} />
+                <button onClick={() => send(input)}
+                  disabled={(!input.trim() && !pendingFile) || busy}
+                  className="nx-send-btn">
+                  {busy ? "⏳" : "➤ KIRIM"}
                 </button>
-
-                              {/* Export */}
-              <div className="nx-exwrap">
-                <button className="nx-tb-btn" onClick={() => setShowExport(v => !v)}>
-                  💾 Export
-                </button>
-                {showExport && (
-                  <div className="nx-exmenu">
-                    <button className="nx-exitem" onClick={exportTxt}>📄 Export TXT</button>
-                    <button className="nx-exitem" onClick={exportPdf}>🖨️ Export PDF</button>
-                  </div>
-                )}
               </div>
-            </div>
-
-            {/* Textarea + Tombol Kirim */}
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-              <textarea ref={inputRef} value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={onKey}
-                placeholder={
-                  listening ? "🎤 Sedang mendengarkan..." :
-                    imgMode ? "🖼️ Deskripsikan gambar yang mau dibuat..." :
-                    pendingFile ? `Tanya tentang ${pendingFile.name}...` :
-                      "Ketik pesan Anda di sini..."
-                }
-                disabled={busy} className="nx-input" rows={1} style={{ flex: 1 }} />
-              <button onClick={() => send(input)}
-                disabled={(!input.trim() && !pendingFile) || busy}
-                className="nx-send-btn">
-                {busy ? "⏳" : "➤ KIRIM"}
-              </button>
-            </div>
-          </div>
         </div>
       </main>
 
@@ -973,6 +982,7 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+              {showAttachMenu && <div style={{ position: "fixed", inset: 0, zIndex: 119 }} onClick={() => setShowAttachMenu(false)} />}
               {showExport && <div style={{ position: "fixed", inset: 0, zIndex: 98 }} onClick={() => setShowExport(false)} />}
     </>
   );
