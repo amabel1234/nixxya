@@ -7,6 +7,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import AuthPage from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
 import TermsPage from "@/pages/TermsPage";
+  import AdminPage from "@/pages/admin";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
