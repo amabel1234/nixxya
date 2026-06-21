@@ -24,12 +24,15 @@ import React, { useState, useEffect } from "react";
   .adm-input:focus { border-color:#6366f1; }
   .adm-btn { width:100%; padding:12px; background:linear-gradient(135deg,#6366f1,#8b5cf6); border:none; border-radius:10px; color:#fff; font-size:15px; font-weight:600; cursor:pointer; margin-top:16px; }
   .adm-btn:hover { opacity:.9; }
+  .adm-btn-sm { padding:8px 16px; font-size:13px; margin-top:12px; width:auto; }
+  .adm-btn-danger { background:linear-gradient(135deg,#dc2626,#b91c1c); }
   .adm-err { color:#f87171; font-size:13px; margin-top:10px; text-align:center; }
+  .adm-ok { color:#4ade80; font-size:13px; margin-top:10px; text-align:center; }
   .adm-stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; margin-bottom:28px; }
   .adm-stat-card { background:#13131a; border:1px solid #1e293b; border-radius:14px; padding:20px; text-align:center; }
   .adm-stat-num { font-size:36px; font-weight:800; background:linear-gradient(135deg,#6366f1,#8b5cf6); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
   .adm-stat-lbl { font-size:13px; color:#64748b; margin-top:4px; }
-  .adm-table-wrap { background:#13131a; border:1px solid #1e293b; border-radius:14px; overflow:hidden; }
+  .adm-table-wrap { background:#13131a; border:1px solid #1e293b; border-radius:14px; overflow:hidden; margin-bottom:24px; }
   .adm-table-head { padding:16px 20px; border-bottom:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center; }
   .adm-table-title { font-weight:600; font-size:15px; }
   .adm-refresh { background:#1e293b; border:1px solid #334155; color:#94a3b8; padding:6px 14px; border-radius:8px; font-size:12px; cursor:pointer; }
@@ -43,6 +46,10 @@ import React, { useState, useEffect } from "react";
   .adm-logout { background:transparent; border:1px solid #334155; color:#64748b; padding:6px 14px; border-radius:8px; font-size:12px; cursor:pointer; margin-left:auto; }
   .adm-logout:hover { border-color:#f87171; color:#f87171; }
   .adm-empty { text-align:center; padding:48px; color:#475569; }
+  .adm-section { background:#13131a; border:1px solid #1e293b; border-radius:14px; padding:24px; margin-bottom:24px; }
+  .adm-section-title { font-size:15px; font-weight:600; margin-bottom:16px; }
+  .adm-pass-grid { display:grid; gap:12px; }
+  .adm-label { font-size:12px; color:#94a3b8; margin-bottom:4px; }
   `;
 
   export default function AdminPage() {
@@ -52,6 +59,15 @@ import React, { useState, useEffect } from "react";
     const [stats, setStats] = useState<Stats | null>(null);
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState("");
+
+    // Ganti password state
+    const [cpOld, setCpOld] = useState("");
+    const [cpNew, setCpNew] = useState("");
+    const [cpNew2, setCpNew2] = useState("");
+    const [cpLoading, setCpLoading] = useState(false);
+    const [cpErr, setCpErr] = useState("");
+    const [cpOk, setCpOk] = useState("");
+
     const bp = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
 
     const load = async (p: string) => {
@@ -73,6 +89,29 @@ import React, { useState, useEffect } from "react";
     const handleLogin = async (e: React.FormEvent) => {
       e.preventDefault();
       await load(pass);
+    };
+
+    const handleChangePass = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setCpErr(""); setCpOk("");
+      if (cpNew !== cpNew2) { setCpErr("Password baru tidak cocok!"); return; }
+      if (cpNew.length < 6) { setCpErr("Password baru minimal 6 karakter"); return; }
+      setCpLoading(true);
+      try {
+        const res = await fetch(`${bp}/api/admin-change-pass`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ currentPass: cpOld, newPass: cpNew }),
+        });
+        const d = await res.json();
+        if (!res.ok) { setCpErr(d.error || "Gagal mengganti password"); return; }
+        setCpOk("✅ Password berhasil diganti! Silakan login ulang.");
+        sessionStorage.removeItem("nx-admin-pass");
+        setSavedPass(cpNew);
+        sessionStorage.setItem("nx-admin-pass", cpNew);
+        setCpOld(""); setCpNew(""); setCpNew2("");
+      } catch { setCpErr("Gagal terhubung ke server"); }
+      finally { setCpLoading(false); }
     };
 
     const today = stats?.users.filter(u => {
@@ -98,7 +137,7 @@ import React, { useState, useEffect } from "react";
             {authed && (
               <button className="adm-logout" onClick={() => {
                 sessionStorage.removeItem("nx-admin-pass");
-                setAuthed(false); setStats(null); setSavedPass("");
+                setAuthed(false); setStats(null); setSavedPass(""); setPass("");
               }}>Keluar</button>
             )}
           </div>
@@ -108,7 +147,7 @@ import React, { useState, useEffect } from "react";
               <div className="adm-login-title">🔐 Login Admin</div>
               <div style={{fontSize:13,color:"#64748b",marginBottom:16}}>Masukkan password admin untuk melihat data</div>
               <form onSubmit={handleLogin}>
-                <label style={{fontSize:13,color:"#94a3b8"}}>Password Admin</label>
+                <label className="adm-label">Password Admin</label>
                 <input type="password" className="adm-input" value={pass}
                   onChange={e => setPass(e.target.value)} placeholder="••••••••" autoFocus />
                 <button className="adm-btn" type="submit" disabled={loading}>
@@ -119,6 +158,7 @@ import React, { useState, useEffect } from "react";
             </div>
           ) : (
             <>
+              {/* Stats */}
               <div className="adm-stats-row">
                 <div className="adm-stat-card">
                   <div className="adm-stat-num">{stats?.total ?? 0}</div>
@@ -134,6 +174,7 @@ import React, { useState, useEffect } from "react";
                 </div>
               </div>
 
+              {/* Tabel pengguna */}
               <div className="adm-table-wrap">
                 <div className="adm-table-head">
                   <span className="adm-table-title">📋 Daftar Pengguna</span>
@@ -169,6 +210,35 @@ import React, { useState, useEffect } from "react";
                     </tbody>
                   </table>
                 )}
+              </div>
+
+              {/* Ganti Password */}
+              <div className="adm-section">
+                <div className="adm-section-title">🔑 Ganti Password Admin</div>
+                <form onSubmit={handleChangePass}>
+                  <div className="adm-pass-grid">
+                    <div>
+                      <div className="adm-label">Password Lama</div>
+                      <input type="password" className="adm-input" value={cpOld}
+                        onChange={e => setCpOld(e.target.value)} placeholder="Password sekarang" />
+                    </div>
+                    <div>
+                      <div className="adm-label">Password Baru</div>
+                      <input type="password" className="adm-input" value={cpNew}
+                        onChange={e => setCpNew(e.target.value)} placeholder="Minimal 6 karakter" />
+                    </div>
+                    <div>
+                      <div className="adm-label">Konfirmasi Password Baru</div>
+                      <input type="password" className="adm-input" value={cpNew2}
+                        onChange={e => setCpNew2(e.target.value)} placeholder="Ulangi password baru" />
+                    </div>
+                  </div>
+                  <button className="adm-btn adm-btn-sm" type="submit" disabled={cpLoading || !cpOld || !cpNew || !cpNew2}>
+                    {cpLoading ? "Menyimpan..." : "Simpan Password Baru"}
+                  </button>
+                  {cpErr && <div className="adm-err">{cpErr}</div>}
+                  {cpOk && <div className="adm-ok">{cpOk}</div>}
+                </form>
               </div>
             </>
           )}
