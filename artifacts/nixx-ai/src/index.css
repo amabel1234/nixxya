@@ -9,25 +9,26 @@
   /* ===================== */
   /* CSS VARIABLES         */
   /* ===================== */
+  /* Dark mode adalah DEFAULT */
   :root {
-    --primary-bg: #f8f7ff;
-    --secondary-bg: #f0eeff;
-    --card-bg: #ffffff;
-    --text-primary: #1a1a2e;
-    --text-secondary: #4a4a6a;
-    --text-muted: #8888aa;
-    --border-color: #e8e4ff;
-    --accent: #7c3aed;
-    --accent-2: #a855f7;
-    --accent-hover: #6d28d9;
+    --primary-bg: #0f0d1a;
+    --secondary-bg: #1a1628;
+    --card-bg: #1e1a2e;
+    --text-primary: #f0eeff;
+    --text-secondary: #c4b8ff;
+    --text-muted: #7b6fa0;
+    --border-color: #2d2550;
+    --accent: #a855f7;
+    --accent-2: #c084fc;
+    --accent-hover: #9333ea;
     --gradient: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
-    --gradient-soft: linear-gradient(135deg, #ede9fe 0%, #fae8ff 100%);
+    --gradient-soft: linear-gradient(135deg, #1e1a2e 0%, #2d1a3e 100%);
     --danger-color: #ef4444;
     --danger-hover: #dc2626;
     --user-bubble: linear-gradient(135deg, #7c3aed, #a855f7);
-    --ai-bubble: #f3f0ff;
-    --shadow: 0 8px 32px rgba(124, 58, 237, 0.06);
-    --shadow-sm: 0 2px 8px rgba(124, 58, 237, 0.08);
+    --ai-bubble: #241e38;
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
 
   [data-theme="dark"] {
@@ -49,6 +50,27 @@
     --ai-bubble: #241e38;
     --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  [data-theme="light"] {
+    --primary-bg: #f8f7ff;
+    --secondary-bg: #f0eeff;
+    --card-bg: #ffffff;
+    --text-primary: #1a1a2e;
+    --text-secondary: #4a4a6a;
+    --text-muted: #8888aa;
+    --border-color: #e8e4ff;
+    --accent: #7c3aed;
+    --accent-2: #a855f7;
+    --accent-hover: #6d28d9;
+    --gradient: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
+    --gradient-soft: linear-gradient(135deg, #ede9fe 0%, #fae8ff 100%);
+    --danger-color: #ef4444;
+    --danger-hover: #dc2626;
+    --user-bubble: linear-gradient(135deg, #7c3aed, #a855f7);
+    --ai-bubble: #f3f0ff;
+    --shadow: 0 8px 32px rgba(124, 58, 237, 0.06);
+    --shadow-sm: 0 2px 8px rgba(124, 58, 237, 0.08);
   }
 
   /* ===================== */
@@ -658,10 +680,7 @@
     align-items: center;
     justify-content: center;
     padding: 24px 16px;
-    background: #ffffff;
-  }
-  [data-theme="dark"] .nx-page-center {
-    background: #13111f;
+    background: var(--primary-bg);
   }
 
   /* ===================== */

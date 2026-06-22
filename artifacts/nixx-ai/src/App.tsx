@@ -9,6 +9,7 @@ import HomePage from "@/pages/home";
 import ChatPage from "@/pages/chat";
 import PremiumPage from "@/pages/premium";
 import AdminPage from "@/pages/admin";
+import TermsPage from "@/pages/TermsPage";
 import SignInPage from "@/pages/sign-in";
 import SignUpPage from "@/pages/sign-up";
 import NotFound from "@/pages/not-found";
@@ -47,41 +48,30 @@ const clerkAppearance = {
     logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
   },
   variables: {
-    colorPrimary: "#7c3aed",
-    colorForeground: "#1e1b4b",
-    colorMutedForeground: "#6b7280",
-    colorDanger: "#dc2626",
-    colorBackground: "#f8f7ff",
-    colorInput: "#f3f0ff",
-    colorInputForeground: "#1e1b4b",
-    colorNeutral: "#ede9fe",
+    colorPrimary: "#a855f7",
+    colorForeground: "#f0eeff",
+    colorMutedForeground: "#c4b8ff",
+    colorDanger: "#ef4444",
+    colorBackground: "#1e1a2e",
+    colorInput: "#241e38",
+    colorInputForeground: "#f0eeff",
+    colorNeutral: "#2d2550",
     fontFamily: "Inter, sans-serif",
     borderRadius: "0.75rem",
   },
   elements: {
     rootBox: "w-full flex justify-center",
-    cardBox: "bg-white rounded-2xl w-[440px] max-w-full overflow-hidden shadow-xl border border-purple-100",
+    cardBox: "rounded-2xl w-[440px] max-w-full overflow-hidden shadow-2xl",
     card: "!shadow-none !border-0 !bg-transparent !rounded-none",
     footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    headerTitle: "text-purple-900 font-bold",
-    headerSubtitle: "text-gray-500",
-    socialButtonsBlockButtonText: "text-gray-700 font-medium",
-    formFieldLabel: "text-gray-700 font-medium",
-    footerActionLink: "text-purple-600 hover:text-purple-700 font-medium",
-    footerActionText: "text-gray-500",
-    dividerText: "text-gray-400",
-    identityPreviewEditButton: "text-purple-600",
-    formFieldSuccessText: "text-green-600",
-    alertText: "text-red-600",
+    headerTitle: "font-bold",
+    socialButtonsBlockButtonText: "font-medium",
+    formFieldLabel: "font-medium",
+    footerActionLink: "font-medium",
     logoBox: "flex justify-center",
     logoImage: "h-10 w-10 rounded-full",
-    socialButtonsBlockButton: "border border-gray-200 hover:bg-purple-50 rounded-lg",
-    formButtonPrimary: "bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold",
-    formFieldInput: "border border-purple-200 rounded-lg bg-purple-50 text-gray-900 focus:ring-2 focus:ring-purple-400",
-    footerAction: "bg-gray-50",
-    dividerLine: "bg-gray-200",
+    formButtonPrimary: "rounded-lg font-semibold",
     alert: "rounded-lg",
-    otpCodeFieldInput: "border border-purple-200 rounded-lg",
     formFieldRow: "gap-3",
     main: "gap-4",
   },
@@ -99,13 +89,20 @@ export function useTheme() {
 }
 
 function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    const saved = localStorage.getItem("nx-theme");
+    return saved === "light" ? false : true;
+  });
 
   useEffect(() => {
     const html = document.documentElement;
-    if (isDark) html.setAttribute("data-theme", "dark");
-    else html.removeAttribute("data-theme");
-    if (isDark) localStorage.setItem("nx-theme", "dark"); else localStorage.removeItem("nx-theme");
+    if (isDark) {
+      html.setAttribute("data-theme", "dark");
+      localStorage.setItem("nx-theme", "dark");
+    } else {
+      html.setAttribute("data-theme", "light");
+      localStorage.setItem("nx-theme", "light");
+    }
   }, [isDark]);
 
   return (
@@ -143,6 +140,7 @@ function Router() {
       <Route path="/chat" component={ChatPage} />
       <Route path="/premium" component={PremiumPage} />
       <Route path="/admin" component={AdminPage} />
+      <Route path="/terms" component={TermsPage} />
       <Route component={NotFound} />
     </Switch>
   );
