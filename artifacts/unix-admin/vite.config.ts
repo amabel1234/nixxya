@@ -11,7 +11,7 @@ export default defineConfig({
   base: basePath,
   plugins: [
     react(),
-    tailwindcss(),
+    tailwindcss({ optimize: false }),
     ...(!isVercel && process.env.NODE_ENV !== "production"
       ? [
           (await import("@replit/vite-plugin-runtime-error-modal")).default(),
