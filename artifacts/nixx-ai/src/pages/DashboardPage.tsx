@@ -168,8 +168,8 @@ async function generateImage(prompt: string): Promise<string> {
     if (!data.dataUrl) throw new Error(data.error ?? "Respon gambar kosong");
     return data.dataUrl;
   }
-async function askAI(msg: string, hist: { role: string; content: string }[], modelId: string, customPersona?: string) {
-  const sys = customPersona ? customPersona + " " + BASE_PROMPT : getSys(modelId);
+async function askAI(msg: string, hist: { role: string; content: string }[], modelId: string) {
+  const sys = getSys(modelId);
   const messages = [
     { role: "system", content: sys },
     ...hist.slice(-8).map(m => ({ role: m.role, content: m.content.slice(0, 2000) })),
@@ -213,19 +213,11 @@ function save(c: LocalConv[]) {
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
-.nx-plus-btn{width:36px;height:36px;border-radius:50%;background:rgba(168,85,247,.15);border:1.5px solid rgba(168,85,247,.3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;color:#a855f7;transition:all .15s;flex-shrink:0}
-  .nx-plus-btn:hover{background:rgba(168,85,247,.28);transform:scale(1.08)}
-  .nx-plus-btn.open{background:rgba(168,85,247,.3);border-color:#a855f7;transform:rotate(45deg)}
-  .nx-attach-wrap{position:relative}
-  .nx-attach-menu{position:absolute;bottom:calc(100% + 10px);left:0;background:var(--nx-card-bg,#1e1a2e);border:1px solid var(--nx-border,#2d2550);border-radius:14px;padding:6px;min-width:210px;box-shadow:0 8px 28px rgba(0,0,0,.45);z-index:120;display:flex;flex-direction:column;gap:2px}
-  .nx-am-item{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;cursor:pointer;padding:10px 12px;border-radius:10px;font-size:13px;color:var(--nx-text,#f0eeff);transition:background .12s;text-align:left}
-  .nx-am-item:hover{background:rgba(168,85,247,.12);color:#a855f7}
-  .nx-am-item.on{color:#a855f7;background:rgba(168,85,247,.15)}
-  .nx-am-item.rec{color:#ef4444}
-  .nx-am-sep{height:1px;background:var(--nx-border,#2d2550);margin:3px 8px}
-  [data-theme="light"] .nx-attach-menu{background:#fff;border-color:#e8e4ff}
-  [data-theme="light"] .nx-am-item{color:#1a1a2e}
-  .nx-tb-btn{display:none}
+.nx-toolbar{display:flex;align-items:center;gap:3px;padding:4px 0 5px}
+.nx-tb-btn{background:none;border:none;cursor:pointer;padding:5px 8px;border-radius:8px;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--nx-text-muted,#7b6fa0);transition:all .15s}
+.nx-tb-btn:hover{background:rgba(168,85,247,.12);color:#a855f7}
+.nx-tb-btn.on{color:#a855f7;background:rgba(168,85,247,.18)}
+.nx-tb-btn.rec{color:#ef4444;background:rgba(239,68,68,.12)}
 
 .nx-ap{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;margin-bottom:6px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.22)}
 .nx-ap-thumb{width:42px;height:42px;object-fit:cover;border-radius:7px;flex-shrink:0}
@@ -266,29 +258,6 @@ const CSS = `
 .nx-genimg-btn:hover{background:rgba(168,85,247,.28)}
 .nx-genimg-prompt{font-size:11px;color:var(--nx-text-muted,#7b6fa0);font-style:italic;margin-top:2px}
 .nx-tb-btn.img-on{color:#a855f7;background:rgba(168,85,247,.2);border:1px solid rgba(168,85,247,.35)}
-  .nx-char-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center}
-  .nx-char-modal{background:var(--nx-card-bg,#1e1a2e);border:1px solid var(--nx-border,#2d2550);border-radius:18px 18px 0 0;width:100%;max-width:520px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
-  .nx-char-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;border-bottom:1px solid var(--nx-border,#2d2550)}
-  .nx-char-title{font-size:15px;font-weight:700;color:var(--nx-text,#f0eeff)}
-  .nx-char-close{background:none;border:none;cursor:pointer;color:var(--nx-text-muted,#7b6fa0);font-size:18px;padding:2px 6px}
-  .nx-char-body{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
-  .nx-char-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1.5px solid transparent;background:rgba(168,85,247,.06);cursor:pointer;transition:all .15s}
-  .nx-char-card:hover,.nx-char-card.active{border-color:rgba(168,85,247,.5);background:rgba(168,85,247,.13)}
-  .nx-char-card.active{border-color:#a855f7}
-  .nx-char-emoji{font-size:26px;flex-shrink:0;width:36px;text-align:center}
-  .nx-char-info{flex:1;min-width:0}
-  .nx-char-name{font-size:13px;font-weight:700;color:var(--nx-text,#f0eeff)}
-  .nx-char-desc{font-size:11px;color:var(--nx-text-muted,#7b6fa0);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .nx-char-del{background:none;border:none;cursor:pointer;color:#f87171;font-size:13px;opacity:.55;padding:3px 5px;flex-shrink:0}
-  .nx-char-del:hover{opacity:1}
-  .nx-char-form{border:1.5px dashed rgba(168,85,247,.35);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;margin-top:4px}
-  .nx-char-input{background:rgba(168,85,247,.07);border:1px solid rgba(168,85,247,.25);border-radius:8px;padding:7px 10px;font-size:13px;color:var(--nx-text,#f0eeff);width:100%;outline:none;box-sizing:border-box}
-  .nx-char-input:focus{border-color:#a855f7}
-  .nx-char-save{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:9px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-end;margin-top:2px}
-  .nx-char-save:disabled{opacity:.4;cursor:default}
-  [data-theme="light"] .nx-char-modal{background:#fff;border-color:#e8e4ff}
-  [data-theme="light"] .nx-char-name{color:#1a1a2e}
-  [data-theme="light"] .nx-char-input{background:#f5f3ff;border-color:#d8b4fe;color:#1a1a2e}
 `;
 
 // ─── Ikon file ─────────────────────────────────────────────────────────────────
@@ -301,23 +270,7 @@ function fileIcon(name: string, kind: "file" | "audio") {
   return "📎";
 }
 
-// ─── Character types & presets ──────────────────────────────────────────────
-  interface CustomChar { id: string; emoji: string; name: string; persona: string; }
-  const LS_CHARS = "nx-custom-chars";
-  const PRESET_CHARS: CustomChar[] = [
-    { id:"preset-asisten",    emoji:"🧠", name:"Asisten Umum",   persona:"Kamu adalah asisten pribadi cerdas dan ramah. Bantu pengguna dengan informatif." },
-    { id:"preset-teman",      emoji:"😎", name:"Teman Gaul",      persona:"Kamu adalah teman ngobrol santai dan lucu, suka pakai bahasa gaul. Jangan terlalu formal." },
-    { id:"preset-guru",       emoji:"📚", name:"Guru Pintar",     persona:"Kamu adalah guru yang sabar dan pintar. Jelaskan dengan sederhana dan contoh nyata." },
-    { id:"preset-programmer", emoji:"💻", name:"Programmer Pro",  persona:"Kamu adalah programmer senior ahli coding. Bantu debug, review kode, dan jelaskan teknis dengan jelas." },
-    { id:"preset-chef",       emoji:"🍳", name:"Chef Kreatif",    persona:"Kamu adalah chef profesional. Berikan resep, tips memasak, dan ide masakan lezat dan mudah." },
-    { id:"preset-psikolog",   emoji:"💙", name:"Psikolog",        persona:"Kamu adalah psikolog yang empati. Dengarkan dengan baik dan berikan dukungan emosional." },
-  ];
-  function loadChars(): CustomChar[] {
-    try { const r = localStorage.getItem(LS_CHARS); return r ? JSON.parse(r) : []; } catch { return []; }
-  }
-  function saveChars(c: CustomChar[]) { try { localStorage.setItem(LS_CHARS, JSON.stringify(c)); } catch {} }
-
-  // ─── Component ────────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth();
   const [convs, setConvs] = useState<LocalConv[]>(() => load());
@@ -330,7 +283,7 @@ export default function DashboardPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editTxt, setEditTxt] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">(() =>
-    (localStorage.getItem("nx-theme") as "dark" | "light") || "light"
+    (localStorage.getItem("nx-theme") as "dark" | "light") || "dark"
   );
   const [input, setInput] = useState("");
   const [pendingFile, setPendingFile] = useState<{
@@ -341,15 +294,6 @@ export default function DashboardPage() {
   const [speakId, setSpeakId] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [imgMode, setImgMode] = useState(false);
-    const [showCharModal, setShowCharModal] = useState(false);
-  const [showAttachMenu, setShowAttachMenu] = useState(false);
-    const [webSearch, setWebSearch] = useState(false);
-    const [isPremium, setIsPremium] = useState(false);
-    const [showUpgrade, setShowUpgrade] = useState(false);
-    const [upgradeReason, setUpgradeReason] = useState<"limit"|"model">("limit");
-    const [customChars, setCustomChars] = useState<CustomChar[]>(() => loadChars());
-    const [activeCharId, setActiveCharId] = useState<string | null>(null);
-    const [charForm, setCharForm] = useState({ emoji: "🤖", name: "", persona: "" });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -408,10 +352,7 @@ export default function DashboardPage() {
     try {
       const hist = apiMsgs.slice(0, -1).map(m => ({ role: m.role, content: m.content }));
       const last = apiMsgs[apiMsgs.length - 1].content;
-      // Gunakan persona karakter aktif kalau ada
-        const allChars = [...PRESET_CHARS, ...customChars];
-        const activeChar = activeCharId ? allChars.find(c => c.id === activeCharId) : null;
-        full = await askAI(last, hist, getModelById(modelId).actualModel, activeChar?.persona);
+      full = await askAI(last, hist, getModelById(modelId).actualModel);
       for (let i = 0; i < full.length; i += 4) {
         setStreaming(s => s + full.slice(i, i + 4));
         await new Promise(r => setTimeout(r, 8));
@@ -583,17 +524,6 @@ export default function DashboardPage() {
   const send = async (txt: string) => {
     const userText = txt.trim();
     if ((!userText && !pendingFile) || busy) return;
-    // Cek limit harian (hanya non-premium)
-    if (!isPremium) {
-      const _today = new Date().toDateString();
-      let dc: {date:string;count:number} = {date:"",count:0};
-      try { dc = JSON.parse(localStorage.getItem("nx-daily-msgs")||"{}"); } catch {}
-      const _cnt = dc.date === _today ? (dc.count||0) : 0;
-      let _lim = 20;
-      try { const _cr = await fetch((import.meta.env.BASE_URL??"").replace(/\/$/, "")+"/api/get-config"); const _cd = await _cr.json(); _lim = _cd.dailyFreeLimit||20; } catch {}
-      if (_cnt >= _lim) { setUpgradeReason("limit"); setShowUpgrade(true); return; }
-      localStorage.setItem("nx-daily-msgs", JSON.stringify({date:_today,count:_cnt+1}));
-    }
     const wasImgMode = imgMode;
     setInput(""); setImgMode(false); if (inputRef.current) inputRef.current.style.height = "auto";
 
@@ -658,28 +588,7 @@ export default function DashboardPage() {
     const cid = convId;
     const nextMsgs = [...prevMsgs, userMsg];
     setConvs(p => p.map(c => c.id === cid ? { ...c, messages: nextMsgs } : c));
-    // Web Search: ambil konteks internet sebelum kirim ke AI
-      if (webSearch && userText && !wasImgMode) {
-        try {
-          const _bp = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
-          const sr = await fetch(`${_bp}/api/web-search?q=${encodeURIComponent(userText)}`);
-          const sd = await sr.json();
-          if (sd.results?.length > 0) {
-            const ctx = sd.results.slice(0, 3).map((r: any, i: number) =>
-              `[Hasil ${i+1}] ${r.title ? r.title + "\n" : ""}${r.content || r.snippet || ""}\nSumber: ${r.url || ""}`
-            ).join("\n\n");
-            const searchMsg: LocalMessage = {
-              id: `s-${Date.now()}`, role: "user",
-              content: `[Hasil pencarian internet untuk: "${userText}"]\n\n${ctx}\n\nBerdasarkan hasil pencarian di atas, jawab: ${userText}`,
-              text: undefined, createdAt: new Date().toISOString(),
-            };
-            const msgsWithSearch = [...nextMsgs.slice(0, -1), searchMsg];
-            await doStream(msgsWithSearch, cid, undefined);
-            return;
-          }
-        } catch (_) {}
-      }
-          await doStream(nextMsgs, cid, wasImgMode ? userText : undefined);
+    await doStream(nextMsgs, cid, wasImgMode ? userText : undefined);
   };
 
   const regen = async () => {
@@ -719,11 +628,7 @@ export default function DashboardPage() {
         conversations={sideConvs} activeId={activeId}
         onSelect={id => { setActiveId(id); setSidebarOpen(false); }}
         onNew={newChat} onDelete={del} onClearChat={clearChat}
-        selectedModelId={modelId} onModelChange={id => {
-            const PREMIUM_MODELS = ["gpt4o","gemini25v1","gemini25v2","grok4fast","grok3jail1","grok3jail2","gptoss120","llama33","perplexed"];
-            if (PREMIUM_MODELS.includes(id) && !isPremium) { setUpgradeReason("model"); setShowUpgrade(true); return; }
-            setModelId(id); setSidebarOpen(false);
-          }}
+        selectedModelId={modelId} onModelChange={id => { setModelId(id); setSidebarOpen(false); }}
         open={sidebarOpen}
         userName={user?.username ?? user?.email?.split("@")[0] ?? "User"}
         basePath={bp}
@@ -874,182 +779,75 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* hidden inputs — tetap ada meski toolbar di-hide */}
+            {/* Toolbar */}
+            <div className="nx-toolbar">
+              {/* Mode Image Generation */}
+              <button
+                className={`nx-tb-btn${imgMode ? " img-on" : ""}`}
+                onClick={() => { setImgMode(v => !v); if (!imgMode) setTimeout(() => inputRef.current?.focus(), 50); }}
+                title="Buat gambar dari teks"
+              >
+                🖼️ <span>{imgMode ? "Mode Gambar ✓" : "Buat Gambar"}</span>
+              </button>
+
+              {/* Upload gambar / teks / PDF */}
+              <button className="nx-tb-btn" onClick={() => fileRef.current?.click()} title="Upload gambar, teks, atau PDF">
+                📎 <span>File</span>
+              </button>
               <input ref={fileRef} type="file"
                 accept=".txt,.md,.js,.ts,.tsx,.jsx,.json,.csv,.html,.css,.py,.java,.c,.cpp,.xml,.yaml,.yml,.sh,.sql,.pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.zip,.rar"
                 style={{ display: "none" }} onChange={onFile} />
+
+              {/* Upload audio */}
+              <button className="nx-tb-btn" onClick={() => audioFileRef.current?.click()} title="Upload file audio">
+                🎵 <span>Audio</span>
+              </button>
               <input ref={audioFileRef} type="file"
                 accept=".mp3,.wav,.ogg,.m4a,.aac,.webm,.flac,.opus"
                 style={{ display: "none" }} onChange={onAudioFile} />
 
-            {/* Input Row: + button + textarea + kirim */}
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                {/* Tombol + (attach menu) */}
-                <div className="nx-attach-wrap">
-                  <button
-                    className={`nx-plus-btn${showAttachMenu ? " open" : ""}${webSearch ? " ws-on" : ""}`}
-                    onClick={() => setShowAttachMenu(v => !v)}
-                    title="Lampiran & Fitur"
-                  >+</button>
-                  {showAttachMenu && (
-                    <div className="nx-attach-menu">
-                      {/* Buat Gambar */}
-                      <button className={`nx-am-item${imgMode ? " on" : ""}`} onClick={() => {
-                        setImgMode(v => !v); setShowAttachMenu(false);
-                        setTimeout(() => inputRef.current?.focus(), 50);
-                      }}>
-                        <span className="nx-am-icon">🖼️</span>
-                        <span>{imgMode ? "✓ Mode Gambar Aktif" : "Buat Gambar"}</span>
-                      </button>
-                      {/* Web Search */}
-                      <button className={`nx-am-item${webSearch ? " on" : ""}`} onClick={() => {
-                        setWebSearch(v => !v); setShowAttachMenu(false);
-                      }}>
-                        <span className="nx-am-icon">🌐</span>
-                        <span>{webSearch ? "✓ Web Search Aktif" : "Web Search"}</span>
-                      </button>
-                      {/* Upload File */}
-                      <button className="nx-am-item" onClick={() => { fileRef.current?.click(); setShowAttachMenu(false); }}>
-                        <span className="nx-am-icon">📎</span><span>Upload File / Foto</span>
-                      </button>
-                      {/* Upload Audio */}
-                      <button className="nx-am-item" onClick={() => { audioFileRef.current?.click(); setShowAttachMenu(false); }}>
-                        <span className="nx-am-icon">🎵</span><span>Upload Audio</span>
-                      </button>
-                      {/* Mikrofon */}
-                      <button className={`nx-am-item${listening ? " rec" : ""}`} onClick={() => { toggleMic(); setShowAttachMenu(false); }}>
-                        <span className="nx-am-icon">{listening ? "⏹️" : "🎙️"}</span>
-                        <span>{listening ? "Stop Rekam" : "Rekam Suara"}</span>
-                      </button>
-                      <div className="nx-am-sep" />
-                      {/* Karakter */}
-                      <button className={`nx-am-item${activeCharId ? " on" : ""}`} onClick={() => { setShowCharModal(true); setShowAttachMenu(false); }}>
-                        <span className="nx-am-icon">🎭</span>
-                        <span>{activeCharId ? ([...PRESET_CHARS,...customChars].find(c=>c.id===activeCharId)?.name ?? "Karakter") : "Karakter AI"}</span>
-                      </button>
-                      <div className="nx-am-sep" />
-                      {/* Export */}
-                      <button className="nx-am-item" onClick={() => { exportTxt(); setShowAttachMenu(false); }}>
-                        <span className="nx-am-icon">📄</span><span>Export TXT</span>
-                      </button>
-                      <button className="nx-am-item" onClick={() => { exportPdf(); setShowAttachMenu(false); }}>
-                        <span className="nx-am-icon">🖨️</span><span>Export PDF</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+              {/* Mikrofon (STT) */}
+              <button className={`nx-tb-btn${listening ? " rec" : ""}`} onClick={toggleMic} title="Rekam suara">
+                {listening ? <><span className="recdot" />Stop</> : <>🎙️ Suara</>}
+              </button>
 
-                <textarea ref={inputRef} value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={onKey}
-                  placeholder={
-                    listening ? "🎤 Sedang mendengarkan..." :
-                      imgMode ? "🖼️ Deskripsikan gambar yang mau dibuat..." :
-                      webSearch ? "🌐 Tanya apa saja, saya cari di internet..." :
-                      pendingFile ? `Tanya tentang ${pendingFile.name}...` :
-                        "Ketik pesan Anda di sini..."
-                  }
-                  disabled={busy} className="nx-input" rows={1} style={{ flex: 1 }} />
-                <button onClick={() => send(input)}
-                  disabled={(!input.trim() && !pendingFile) || busy}
-                  className="nx-send-btn">
-                  {busy ? "⏳" : "➤ KIRIM"}
+              {/* Export */}
+              <div className="nx-exwrap">
+                <button className="nx-tb-btn" onClick={() => setShowExport(v => !v)}>
+                  💾 Export
                 </button>
+                {showExport && (
+                  <div className="nx-exmenu">
+                    <button className="nx-exitem" onClick={exportTxt}>📄 Export TXT</button>
+                    <button className="nx-exitem" onClick={exportPdf}>🖨️ Export PDF</button>
+                  </div>
+                )}
               </div>
+            </div>
+
+            {/* Textarea + Tombol Kirim */}
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              <textarea ref={inputRef} value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={onKey}
+                placeholder={
+                  listening ? "🎤 Sedang mendengarkan..." :
+                    imgMode ? "🖼️ Deskripsikan gambar yang mau dibuat..." :
+                    pendingFile ? `Tanya tentang ${pendingFile.name}...` :
+                      "Ketik pesan Anda di sini..."
+                }
+                disabled={busy} className="nx-input" rows={1} style={{ flex: 1 }} />
+              <button onClick={() => send(input)}
+                disabled={(!input.trim() && !pendingFile) || busy}
+                className="nx-send-btn">
+                {busy ? "⏳" : "➤ KIRIM"}
+              </button>
+            </div>
           </div>
         </div>
       </main>
 
-      {/* ── Character Modal ── */}
-        {showCharModal && (
-          <div className="nx-char-overlay" onClick={() => setShowCharModal(false)}>
-            <div className="nx-char-modal" onClick={e => e.stopPropagation()}>
-              <div className="nx-char-header">
-                <span className="nx-char-title">🎭 Pilih Karakter AI</span>
-                <button className="nx-char-close" onClick={() => setShowCharModal(false)}>✕</button>
-              </div>
-              <div className="nx-char-body">
-                <div className={`nx-char-card${!activeCharId ? " active" : ""}`}
-                  onClick={() => { setActiveCharId(null); setShowCharModal(false); }}>
-                  <span className="nx-char-emoji">🤖</span>
-                  <div className="nx-char-info">
-                    <div className="nx-char-name">Default (Model Biasa)</div>
-                    <div className="nx-char-desc">Gunakan kepribadian model yang dipilih</div>
-                  </div>
-                </div>
-                {[...PRESET_CHARS].map(c => (
-                  <div key={c.id} className={`nx-char-card${activeCharId===c.id?" active":""}`}
-                    onClick={() => { setActiveCharId(c.id); setShowCharModal(false); }}>
-                    <span className="nx-char-emoji">{c.emoji}</span>
-                    <div className="nx-char-info">
-                      <div className="nx-char-name">{c.name}</div>
-                      <div className="nx-char-desc">{c.persona}</div>
-                    </div>
-                  </div>
-                ))}
-                {customChars.map(c => (
-                  <div key={c.id} className={`nx-char-card${activeCharId===c.id?" active":""}`}
-                    onClick={() => { setActiveCharId(c.id); setShowCharModal(false); }}>
-                    <span className="nx-char-emoji">{c.emoji}</span>
-                    <div className="nx-char-info">
-                      <div className="nx-char-name">{c.name} <span style={{fontSize:10,color:"#a855f7"}}>✦ Custom</span></div>
-                      <div className="nx-char-desc">{c.persona}</div>
-                    </div>
-                    <button className="nx-char-del" onClick={e => {
-                      e.stopPropagation();
-                      const next = customChars.filter(x=>x.id!==c.id);
-                      setCustomChars(next); saveChars(next);
-                      if (activeCharId===c.id) setActiveCharId(null);
-                    }}>🗑️</button>
-                  </div>
-                ))}
-                <div className="nx-char-form">
-                  <div className="nx-char-form-title">✨ Buat Karakter Sendiri</div>
-                  <div style={{display:"flex",gap:6}}>
-                    <input className="nx-char-input" style={{width:52,textAlign:"center",fontSize:20,padding:"4px"}}
-                      maxLength={2} placeholder="😊" value={charForm.emoji}
-                      onChange={e => setCharForm(f=>({...f,emoji:e.target.value}))} />
-                    <input className="nx-char-input" style={{flex:1}} placeholder="Nama karakter..."
-                      maxLength={30} value={charForm.name}
-                      onChange={e => setCharForm(f=>({...f,name:e.target.value}))} />
-                  </div>
-                  <textarea className="nx-char-input" rows={3} style={{resize:"none"}}
-                    placeholder="Kepribadian / persona AI ini... (contoh: Kamu adalah barista kopi yang suka cerita lucu)"
-                    maxLength={500} value={charForm.persona}
-                    onChange={e => setCharForm(f=>({...f,persona:e.target.value}))} />
-                  <button className="nx-char-save"
-                    disabled={!charForm.name.trim()||!charForm.persona.trim()}
-                    onClick={() => {
-                      const nc: CustomChar = {id:"custom-"+Date.now(),emoji:charForm.emoji||"🤖",name:charForm.name.trim(),persona:charForm.persona.trim()};
-                      const next=[...customChars,nc];
-                      setCustomChars(next); saveChars(next);
-                      setActiveCharId(nc.id); setCharForm({emoji:"🤖",name:"",persona:""});
-                      setShowCharModal(false);
-                    }}>✓ Simpan & Pakai</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-              {showAttachMenu && <div style={{ position: "fixed", inset: 0, zIndex: 119 }} onClick={() => setShowAttachMenu(false)} />}
-              {showExport && <div style={{ position: "fixed", inset: 0, zIndex: 98 }} onClick={() => setShowExport(false)} />}
-
-      {/* Upgrade Premium Modal */}
-      {showUpgrade && (
-        <>
-          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:200}} onClick={()=>setShowUpgrade(false)} />
-          <div style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",zIndex:201,background:"#13131f",border:"2px solid #6366f1",borderRadius:20,padding:"32px 28px",maxWidth:380,width:"90%",textAlign:"center"}}>
-            <div style={{fontSize:48,marginBottom:12}}>👑</div>
-            <div style={{fontSize:20,fontWeight:800,color:"#fff",marginBottom:8}}>{upgradeReason==="limit"?"Limit Harian Habis!":"Model Premium!"}</div>
-            <div style={{fontSize:14,color:"#94a3b8",marginBottom:24,lineHeight:"1.6"}}>{upgradeReason==="limit"?"Kamu sudah mencapai batas pesan gratis hari ini. Upgrade ke Premium untuk kirim pesan unlimited!":"Model AI ini khusus pengguna Premium. Upgrade sekarang untuk menggunakannya!"}</div>
-            <button onClick={()=>{setShowUpgrade(false);window.location.href=(import.meta.env.BASE_URL??"").replace(/\/$/,"")+"/premium";}}
-              style={{width:"100%",padding:"13px",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",border:"none",borderRadius:12,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",marginBottom:10}}>
-              ✨ Upgrade ke Premium
-            </button>
-            <button onClick={()=>setShowUpgrade(false)} style={{width:"100%",padding:"10px",background:"transparent",border:"1px solid #334155",borderRadius:10,color:"#64748b",fontSize:13,cursor:"pointer"}}>Lanjut Gratis</button>
-          </div>
-        </>
-      )}
+      {showExport && <div style={{ position: "fixed", inset: 0, zIndex: 98 }} onClick={() => setShowExport(false)} />}
     </>
   );
 }

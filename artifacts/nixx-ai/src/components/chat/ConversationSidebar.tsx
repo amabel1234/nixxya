@@ -1,11 +1,15 @@
 import React from "react";
-import { format } from "date-fns";
 import { useAuth } from "@/context/AuthContext";
 import { AI_MODELS } from "@/lib/models";
-import type { OpenaiConversation } from "@workspace/api-client-react";
+
+interface SimpleConv {
+  id: number;
+  title: string;
+  createdAt: string;
+}
 
 interface ConversationSidebarProps {
-  conversations: OpenaiConversation[];
+  conversations: SimpleConv[];
   activeId: number | null;
   onSelect: (id: number) => void;
   onNew: () => void;
@@ -25,6 +29,8 @@ const MENU_ITEMS = [
   { emoji: "👥", label: "COMMUNITY 🌐", action: () => window.open("https://t.me/nixsukakamu", "_blank") },
   { emoji: "💖", label: "SAWERIA ✨", action: () => window.open("https://nixx-donation.vercel.app", "_blank") },
   { emoji: "⬇️", label: "NIXX DR 🚀", action: () => window.open("https://nixdr.vercel.app", "_blank") },
+  { emoji: "🛡️", label: "ADMIN PANEL", action: () => { window.location.href = "/admin"; } },
+  { emoji: "📋", label: "SYARAT & KETENTUAN", action: () => { window.location.href = "/syarat"; } },
 ];
 
 export function ConversationSidebar({
@@ -60,9 +66,9 @@ export function ConversationSidebar({
               className={`nx-sidebar-btn ${activeId === conv.id ? "active-conv" : ""}`}
               onClick={() => onSelect(conv.id)}
             >
-              <span className="nx-conv-item" style={{ width: "100%", display: "flex", alignItems: "center" }}>
+              <span style={{ width: "100%", display: "flex", alignItems: "center" }}>
                 <span style={{ fontSize: 15, flexShrink: 0 }}>💬</span>
-                <span className="nx-conv-title" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: "0 6px" }}>
+                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: "0 6px" }}>
                   {conv.title || "Percakapan — Nixx AI"}
                 </span>
                 <button

@@ -1,270 +1,121 @@
 import React, { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { Show } from "@clerk/react";
+import { useAuth } from "@/context/AuthContext";
 
-interface Payment {
+const ADMIN_EMAILS = ["nixxteam@gmail.com", "admin@nixxai.dev", "amabel1234@gmail.com"];
+
+interface UserRow {
+  email: string;
+  username: string;
   id: number;
-  clerkId: string;
-  name: string;
-  phone: string;
-  amount: number;
-  qrisRef: string | null;
-  status: string;
-  createdAt: string;
-  approvedAt: string | null;
+  isPremium?: boolean;
 }
-
-interface User {
-  id: number;
-  clerkId: string;
-  username: string | null;
-  email: string | null;
-  isPremium: boolean;
-  premiumUntil: string | null;
-  createdAt: string;
-}
-
-type Tab = "payments" | "users";
 
 export default function AdminPage() {
-  const [, navigate] = useLocation();
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [processing, setProcessing] = useState<number | null>(null);
-  const [tab, setTab] = useState<Tab>("payments");
+  const { user, logout } = useAuth();
+  const [users, setUsers] = useState<UserRow[]>([]);
 
-  const loadData = async () => {
-    setLoading(true);
-    setError("");
+  useEffect(() => {
     try {
-      const [pRes, uRes] = await Promise.all([
-        fetch("/api/admin/payments", { credentials: "include" }),
-        fetch("/api/admin/users", { credentials: "include" }),
-      ]);
-      if (pRes.status === 403) { setError("Akses ditolak. Kamu bukan admin."); setLoading(false); return; }
-      if (!pRes.ok || !uRes.ok) throw new Error("Gagal memuat data");
-      const [pData, uData] = await Promise.all([pRes.json(), uRes.json()]);
-      setPayments(pData);
-      setUsers(uData);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const stored = JSON.parse(localStorage.getItem("nx-users-db") ?? "[]") as any[];
+      setUsers(stored.map(u => ({ email: u.email, username: u.username, id: u.id })));
+    } catch { setUsers([]); }
+  }, []);
 
-  useEffect(() => { loadData(); }, []);
+  const isAdmin = user && ADMIN_EMAILS.includes(user.email);
 
-  const handleAction = async (id: number, action: "approve" | "reject") => {
-    setProcessing(id);
-    try {
-      const res = await fetch(`/api/admin/payments/${id}/${action}`, {
-        method: "POST", credentials: "include",
-      });
-      if (!res.ok) throw new Error("Gagal memproses");
-      await loadData();
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setProcessing(null);
-    }
-  };
+  if (!user) {
+    return (
+      <div style={{ minHeight: "100dvh", background: "#0d0d0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: "#f0eeff", textAlign: "center" }}>
+          <p style={{ marginBottom: 16 }}>⚠️ Kamu harus login dulu.</p>
+          <a href="/sign-in" style={{ color: "#a855f7" }}>← Login</a>
+        </div>
+      </div>
+    );
+  }
 
-  const today = new Date().toDateString();
-  const week = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const stats = {
-    totalUsers: users.length,
-    todayUsers: users.filter(u => new Date(u.createdAt).toDateString() === today).length,
-    weekUsers: users.filter(u => new Date(u.createdAt).getTime() > week).length,
-    premiumUsers: users.filter(u => u.isPremium).length,
-    pendingPayments: payments.filter(p => p.status === "pending").length,
-  };
+  if (!isAdmin) {
+    return (
+      <div style={{ minHeight: "100dvh", background: "#0d0d0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: "#f0eeff", textAlign: "center" }}>
+          <p style={{ fontSize: 40 }}>🚫</p>
+          <p style={{ marginBottom: 8 }}>Akses ditolak. Kamu bukan admin.</p>
+          <a href="/dashboard" style={{ color: "#a855f7" }}>← Kembali ke Dashboard</a>
+        </div>
+      </div>
+    );
+  }
 
-  const statusBadge = (s: string) => {
-    if (s === "approved") return <span className="nx-adm-badge nx-adm-badge--green">Disetujui</span>;
-    if (s === "rejected") return <span className="nx-adm-badge nx-adm-badge--red">Ditolak</span>;
-    return <span className="nx-adm-badge nx-adm-badge--yellow">Menunggu</span>;
-  };
-
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const chatHistory = (() => {
+    try { return JSON.parse(localStorage.getItem("nx-chat-history") ?? "[]") as any[]; } catch { return []; }
+  })();
 
   return (
-    <div className="nx-adm" data-theme="light">
-      <Show when="signed-out">
-        {(() => { navigate("/sign-in"); return null; })()}
-      </Show>
-
-      {/* Header */}
-      <div className="nx-adm-header">
-        <button className="nx-adm-back" onClick={() => navigate("/chat")}>←</button>
-        <div className="nx-adm-header-title">
-          <span className="nx-adm-header-icon">🛡️</span>
-          <span>Admin Panel</span>
+    <div style={{ minHeight: "100dvh", background: "#0d0d0f", color: "#f4f4f8", fontFamily: "Inter, sans-serif", padding: "2rem 1rem" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem", flexWrap: "wrap", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <a href="/dashboard" style={{ color: "#a855f7", textDecoration: "none", fontSize: 14 }}>← Dashboard</a>
+            <h1 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 800 }}>🛡️ Admin Panel</h1>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <span style={{ background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 8, padding: "4px 12px", fontSize: 13, color: "#c084fc" }}>
+              {user.email}
+            </span>
+            <button onClick={logout} style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 8, padding: "4px 12px", fontSize: 13, color: "#ef4444", cursor: "pointer" }}>
+              Keluar
+            </button>
+          </div>
         </div>
-        <button className="nx-adm-refresh" onClick={loadData} disabled={loading}>
-          {loading ? "⏳" : "🔄"}
-        </button>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: "2rem" }}>
+          {[
+            { label: "Total User", value: users.length, emoji: "👥" },
+            { label: "Total Percakapan", value: chatHistory.length, emoji: "💬" },
+            { label: "Total Pesan", value: chatHistory.reduce((s: number, c: any) => s + (c.messages?.length ?? 0), 0), emoji: "📨" },
+          ].map(stat => (
+            <div key={stat.label} style={{ background: "#1a1a1e", border: "1px solid #2a2830", borderRadius: 12, padding: "1.25rem", textAlign: "center" }}>
+              <div style={{ fontSize: 28 }}>{stat.emoji}</div>
+              <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "#a855f7", marginTop: 4 }}>{stat.value}</div>
+              <div style={{ fontSize: 13, color: "#7a7490", marginTop: 2 }}>{stat.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ background: "#1a1a1e", border: "1px solid #2a2830", borderRadius: 16, overflow: "hidden" }}>
+          <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid #2a2830", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 700 }}>👥 Daftar User ({users.length})</h2>
+          </div>
+          {users.length === 0 ? (
+            <div style={{ padding: "2rem", textAlign: "center", color: "#7a7490" }}>Belum ada user terdaftar.</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #2a2830" }}>
+                    {["ID", "Username", "Email"].map(h => (
+                      <th key={h} style={{ padding: "10px 16px", textAlign: "left", color: "#7a7490", fontWeight: 600, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u, i) => (
+                    <tr key={u.id} style={{ borderBottom: i < users.length - 1 ? "1px solid #2a2830" : "none" }}>
+                      <td style={{ padding: "10px 16px", color: "#7a7490" }}>{u.id}</td>
+                      <td style={{ padding: "10px 16px", fontWeight: 600 }}>{u.username}</td>
+                      <td style={{ padding: "10px 16px", color: "#c0b8d8" }}>{u.email}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <p style={{ marginTop: "1.5rem", textAlign: "center", color: "#7a7490", fontSize: 12 }}>
+          ⚠️ Data diambil dari localStorage browser — hanya akun di perangkat ini yang tampil.
+        </p>
       </div>
-
-      {error && (
-        <div className="nx-adm-error">⚠️ {error}</div>
-      )}
-
-      {!error && (
-        <>
-          {/* Stats */}
-          <div className="nx-adm-stats">
-            <div className="nx-adm-stat">
-              <div className="nx-adm-stat-icon">👥</div>
-              <div className="nx-adm-stat-val">{loading ? "—" : stats.totalUsers}</div>
-              <div className="nx-adm-stat-label">Total Pengguna</div>
-            </div>
-            <div className="nx-adm-stat">
-              <div className="nx-adm-stat-icon">📅</div>
-              <div className="nx-adm-stat-val">{loading ? "—" : stats.todayUsers}</div>
-              <div className="nx-adm-stat-label">Daftar Hari Ini</div>
-            </div>
-            <div className="nx-adm-stat">
-              <div className="nx-adm-stat-icon">📈</div>
-              <div className="nx-adm-stat-val">{loading ? "—" : stats.weekUsers}</div>
-              <div className="nx-adm-stat-label">7 Hari Terakhir</div>
-            </div>
-            <div className="nx-adm-stat nx-adm-stat--premium">
-              <div className="nx-adm-stat-icon">👑</div>
-              <div className="nx-adm-stat-val">{loading ? "—" : stats.premiumUsers}</div>
-              <div className="nx-adm-stat-label">Premium</div>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="nx-adm-tabs">
-            <button
-              className={`nx-adm-tab${tab === "payments" ? " nx-adm-tab--active" : ""}`}
-              onClick={() => setTab("payments")}
-            >
-              💳 Pembayaran
-              {stats.pendingPayments > 0 && (
-                <span className="nx-adm-tab-badge">{stats.pendingPayments}</span>
-              )}
-            </button>
-            <button
-              className={`nx-adm-tab${tab === "users" ? " nx-adm-tab--active" : ""}`}
-              onClick={() => setTab("users")}
-            >
-              👥 Pengguna
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="nx-adm-content">
-            {loading ? (
-              <div className="nx-adm-loading">
-                <div className="nx-adm-spinner" />
-                <span>Memuat data...</span>
-              </div>
-            ) : tab === "payments" ? (
-              payments.length === 0 ? (
-                <div className="nx-adm-empty">
-                  <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>💳</div>
-                  <div>Belum ada pembayaran masuk</div>
-                </div>
-              ) : (
-                <div className="nx-adm-list">
-                  {payments.map((p) => (
-                    <div key={p.id} className="nx-adm-card">
-                      <div className="nx-adm-card-top">
-                        <div className="nx-adm-card-name">
-                          <span className="nx-adm-card-avatar">
-                            {(p.name?.[0] || "?").toUpperCase()}
-                          </span>
-                          <div>
-                            <div className="nx-adm-card-title">{p.name}</div>
-                            <div className="nx-adm-card-sub">{p.phone}</div>
-                          </div>
-                        </div>
-                        {statusBadge(p.status)}
-                      </div>
-                      <div className="nx-adm-card-row">
-                        <span className="nx-adm-card-key">Jumlah</span>
-                        <span className="nx-adm-card-amount">Rp{Number(p.amount).toLocaleString("id-ID")}</span>
-                      </div>
-                      {p.qrisRef && (
-                        <div className="nx-adm-card-row">
-                          <span className="nx-adm-card-key">Ref QRIS</span>
-                          <span className="nx-adm-card-val">{p.qrisRef}</span>
-                        </div>
-                      )}
-                      <div className="nx-adm-card-row">
-                        <span className="nx-adm-card-key">Tanggal</span>
-                        <span className="nx-adm-card-val">{formatDate(p.createdAt)}</span>
-                      </div>
-                      {p.status === "pending" && (
-                        <div className="nx-adm-card-actions">
-                          <button
-                            className="nx-adm-btn-approve"
-                            disabled={processing === p.id}
-                            onClick={() => handleAction(p.id, "approve")}
-                          >
-                            {processing === p.id ? "⏳" : "✅"} Setujui
-                          </button>
-                          <button
-                            className="nx-adm-btn-reject"
-                            disabled={processing === p.id}
-                            onClick={() => handleAction(p.id, "reject")}
-                          >
-                            ❌ Tolak
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : (
-              users.length === 0 ? (
-                <div className="nx-adm-empty">
-                  <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>👥</div>
-                  <div>Belum ada pengguna terdaftar</div>
-                </div>
-              ) : (
-                <div className="nx-adm-list">
-                  {users.map((u) => (
-                    <div key={u.id} className="nx-adm-card">
-                      <div className="nx-adm-card-top">
-                        <div className="nx-adm-card-name">
-                          <span className="nx-adm-card-avatar">
-                            {(u.username?.[0] || u.email?.[0] || "?").toUpperCase()}
-                          </span>
-                          <div>
-                            <div className="nx-adm-card-title">{u.username || "—"}</div>
-                            <div className="nx-adm-card-sub">{u.email || u.clerkId}</div>
-                          </div>
-                        </div>
-                        <span className={`nx-adm-badge ${u.isPremium ? "nx-adm-badge--purple" : "nx-adm-badge--gray"}`}>
-                          {u.isPremium ? "👑 Premium" : "Gratis"}
-                        </span>
-                      </div>
-                      {u.isPremium && u.premiumUntil && (
-                        <div className="nx-adm-card-row">
-                          <span className="nx-adm-card-key">Premium s/d</span>
-                          <span className="nx-adm-card-val">{formatDate(u.premiumUntil)}</span>
-                        </div>
-                      )}
-                      <div className="nx-adm-card-row">
-                        <span className="nx-adm-card-key">Daftar</span>
-                        <span className="nx-adm-card-val">{formatDate(u.createdAt)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            )}
-          </div>
-        </>
-      )}
     </div>
   );
 }
