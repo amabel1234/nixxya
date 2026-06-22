@@ -291,8 +291,110 @@
   }
 
   /* ===================== */
-  /* WELCOME SCREEN        */
+  /* LANDING PAGE          */
   /* ===================== */
+  .nx-landing {
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+    background: #13111f;
+  }
+  .nx-landing-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+  }
+  .nx-landing-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.45);
+    animation: nx-float 3s ease-in-out infinite;
+  }
+  @keyframes nx-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .nx-landing-title {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #f0eeff;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+  }
+  .nx-landing-title span {
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .nx-landing-sub {
+    font-size: 0.9rem;
+    color: #7b6fa0;
+    line-height: 1.5;
+  }
+  .nx-landing-suggestions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    margin-top: 4px;
+  }
+  .nx-landing-card {
+    background: #1e1a2e;
+    border: 1px solid #2d2550;
+    border-radius: 14px;
+    padding: 14px 18px;
+    font-size: 0.88rem;
+    color: #c4b8ff;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.18s;
+    font-family: inherit;
+    line-height: 1.4;
+  }
+  .nx-landing-card:hover {
+    background: #2d2550;
+    border-color: #a855f7;
+    color: #f0eeff;
+    transform: translateY(-1px);
+  }
+  .nx-start-btn {
+    width: 100%;
+    padding: 14px 32px;
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.95rem;
+    font-family: inherit;
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .nx-start-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(124, 58, 237, 0.6);
+  }
+
+  /* Legacy welcome (chat page empty state) */
   .nx-welcome {
     display: flex;
     flex-direction: column;
@@ -304,55 +406,50 @@
     gap: 20px;
   }
   .nx-welcome-icon {
-    width: 72px;
-    height: 72px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
-    background: var(--gradient);
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 32px;
+    font-size: 28px;
     box-shadow: 0 8px 24px rgba(124, 58, 237, 0.3);
-    animation: nx-float 3s ease-in-out infinite;
-  }
-  @keyframes nx-float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
   }
   .nx-welcome-title {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 800;
     color: var(--text-primary);
     letter-spacing: -0.3px;
   }
   .nx-welcome-title span {
-    background: var(--gradient);
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   .nx-welcome-desc {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     color: var(--text-muted);
     line-height: 1.6;
-    max-width: 320px;
+    max-width: 300px;
   }
   .nx-welcome-features {
     display: flex;
     flex-direction: column;
     gap: 8px;
     width: 100%;
-    max-width: 340px;
+    max-width: 320px;
   }
   .nx-welcome-feature {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 10px 14px;
-    background: var(--gradient-soft);
+    background: var(--secondary-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    font-size: 0.83rem;
+    font-size: 0.82rem;
     color: var(--text-secondary);
     font-weight: 500;
     text-align: left;
@@ -360,26 +457,6 @@
   .nx-welcome-feature-icon {
     font-size: 18px;
     flex-shrink: 0;
-  }
-  .nx-start-btn {
-    padding: 13px 32px;
-    background: var(--gradient);
-    color: white;
-    border: none;
-    border-radius: 50px;
-    cursor: pointer;
-    font-weight: 700;
-    font-size: 0.95rem;
-    font-family: inherit;
-    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35);
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .nx-start-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 28px rgba(124, 58, 237, 0.45);
   }
 
   /* ===================== */
@@ -568,13 +645,16 @@
     align-items: center;
     justify-content: center;
     padding: 24px 16px;
-    background: var(--primary-bg);
+    background: #ffffff;
+  }
+  [data-theme="dark"] .nx-page-center {
+    background: #13111f;
   }
 
   /* ===================== */
   /* HOME PAGE ACTIONS     */
   /* ===================== */
-  .nx-home-actions {
+  .nx-landing-actions {
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -583,17 +663,23 @@
   }
 
   .nx-login-btn {
+    width: 100%;
     background: transparent;
-    border: 2px solid var(--accent);
-    color: var(--accent);
-    border-radius: 14px;
-    padding: 12px 24px;
+    border: 2px solid #2d2550;
+    color: #c4b8ff;
+    border-radius: 50px;
+    padding: 13px 24px;
     font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.18s;
+    font-family: inherit;
   }
-  .nx-login-btn:hover { background: var(--accent); color: #fff; }
+  .nx-login-btn:hover {
+    border-color: #a855f7;
+    color: #f0eeff;
+    background: #1e1a2e;
+  }
 
   /* ===================== */
   /* SIDEBAR USER INFO     */

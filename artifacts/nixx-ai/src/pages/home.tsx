@@ -13,35 +13,34 @@ export default function HomePage() {
       </Show>
 
       <Show when="signed-out">
-        <div className="nx-page-center">
-          <div className="nx-welcome">
-            <div className="nx-welcome-icon">🧠</div>
-            <div>
-              <div className="nx-welcome-title">
-                Selamat datang di <span>Nixx AI</span>
-              </div>
-            </div>
-            <p className="nx-welcome-desc">
-              Asisten AI terpintar yang bisa bantu kamu belajar, nulis, coding, dan banyak lagi —
-              <strong> gratis untuk semua!</strong>
+        <div className="nx-landing">
+          <div className="nx-landing-inner">
+            <div className="nx-landing-icon">🧠</div>
+            <h1 className="nx-landing-title">
+              Halo! Ada yang bisa <span>dibantu?</span>
+            </h1>
+            <p className="nx-landing-sub">
+              Pilih salah satu atau ketik pertanyaanmu sendiri
             </p>
-            <div className="nx-welcome-features">
-              <div className="nx-welcome-feature">
-                <span className="nx-welcome-feature-icon">🚀</span>
-                <span><strong>26 Model AI</strong> pilihan — dari GPT-4o sampai Llama terbaru</span>
-              </div>
-              <div className="nx-welcome-feature">
-                <span className="nx-welcome-feature-icon">💬</span>
-                <span><strong>Bahasa Indonesia</strong> — AI yang ngerti bahasa sehari-hari</span>
-              </div>
-              <div className="nx-welcome-feature">
-                <span className="nx-welcome-feature-icon">🆓</span>
-                <span><strong>20 pesan/hari gratis</strong> — upgrade Premium untuk tanpa batas</span>
-              </div>
+
+            <div className="nx-landing-suggestions">
+              <button className="nx-landing-card" onClick={() => navigate("/sign-up")}>
+                ✍️ Bantu nulis essay atau artikel yang menarik
+              </button>
+              <button className="nx-landing-card" onClick={() => navigate("/sign-up")}>
+                💡 Jelaskan konsep yang susah dengan cara mudah
+              </button>
+              <button className="nx-landing-card" onClick={() => navigate("/sign-up")}>
+                🐍 Ajarkan cara coding Python yang menguntungkan
+              </button>
+              <button className="nx-landing-card" onClick={() => navigate("/sign-up")}>
+                🤝 Bantu buat bisnis online dengan mudah
+              </button>
             </div>
-            <div className="nx-home-actions">
+
+            <div className="nx-landing-actions">
               <button className="nx-start-btn" onClick={() => navigate("/sign-up")}>
-                ✨ Daftar Gratis
+                ✨ Mulai Gratis
               </button>
               <button className="nx-login-btn" onClick={() => navigate("/sign-in")}>
                 Sudah punya akun? Masuk
