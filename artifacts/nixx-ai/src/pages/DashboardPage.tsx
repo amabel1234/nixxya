@@ -213,6 +213,19 @@ function save(c: LocalConv[]) {
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const CSS = `
+.nx-plus-wrap{position:relative;flex-shrink:0}
+.nx-plus-btn{width:42px;height:42px;border-radius:50%;background:var(--card-bg,#1e1a2e);border:1.5px solid var(--border-color,#2d2550);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:300;color:var(--accent,#a855f7);transition:all .18s;line-height:1}
+.nx-plus-btn:hover,.nx-plus-btn.open{background:rgba(168,85,247,.18);border-color:#a855f7;transform:scale(1.08)}
+.nx-plus-btn.open{transform:rotate(45deg) scale(1.08)}
+.nx-plus-menu{position:absolute;bottom:calc(100% + 10px);left:0;background:var(--card-bg,#1e1a2e);border:1px solid var(--border-color,#2d2550);border-radius:14px;padding:6px;min-width:195px;box-shadow:0 10px 32px rgba(0,0,0,.45);z-index:120;animation:nx-fadeIn .15s ease}
+.nx-plus-item{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;cursor:pointer;padding:10px 13px;border-radius:9px;font-size:13.5px;color:var(--text-primary,#f0eeff);transition:background .12s;text-align:left;font-family:inherit}
+.nx-plus-item:hover{background:rgba(168,85,247,.14);color:#a855f7}
+.nx-plus-item .pi{font-size:18px;width:26px;text-align:center;flex-shrink:0}
+.nx-plus-item.active-mode{background:rgba(168,85,247,.18);color:#a855f7}
+.nx-plus-sep{height:1px;background:var(--border-color,#2d2550);margin:4px 6px}
+[data-theme="light"] .nx-plus-menu{background:#fff;border-color:#e8e4ff}
+[data-theme="light"] .nx-plus-item{color:#1a1a2e}
+
 .nx-toolbar{display:flex;align-items:center;gap:3px;padding:4px 0 5px}
 .nx-tb-btn{background:none;border:none;cursor:pointer;padding:5px 8px;border-radius:8px;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--nx-text-muted,#7b6fa0);transition:all .15s}
 .nx-tb-btn:hover{background:rgba(168,85,247,.12);color:#a855f7}
@@ -294,6 +307,7 @@ export default function DashboardPage() {
   const [speakId, setSpeakId] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [imgMode, setImgMode] = useState(false);
+  const [showAttach, setShowAttach] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -303,7 +317,11 @@ export default function DashboardPage() {
   const imgCache = useRef<Record<string, string>>({});
 
   useEffect(() => { if (!busy) save(convs); }, [convs, busy]);
-  useEffect(() => { document.body.setAttribute("data-theme", theme); localStorage.setItem("nx-theme", theme); }, [theme]);
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    document.body.setAttribute("data-theme", theme);
+    localStorage.setItem("nx-theme", theme);
+  }, [theme]);
   useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
 
   const activeConv = convs.find(c => c.id === activeId) ?? null;
@@ -779,54 +797,52 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Toolbar */}
-            <div className="nx-toolbar">
-              {/* Mode Image Generation */}
-              <button
-                className={`nx-tb-btn${imgMode ? " img-on" : ""}`}
-                onClick={() => { setImgMode(v => !v); if (!imgMode) setTimeout(() => inputRef.current?.focus(), 50); }}
-                title="Buat gambar dari teks"
-              >
-                🖼️ <span>{imgMode ? "Mode Gambar ✓" : "Buat Gambar"}</span>
-              </button>
+            {/* Hidden file inputs */}
+            <input ref={fileRef} type="file"
+              accept=".txt,.md,.js,.ts,.tsx,.jsx,.json,.csv,.html,.css,.py,.java,.c,.cpp,.xml,.yaml,.yml,.sh,.sql,.pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.zip,.rar"
+              style={{ display: "none" }} onChange={onFile} />
+            <input ref={audioFileRef} type="file"
+              accept=".mp3,.wav,.ogg,.m4a,.aac,.webm,.flac,.opus"
+              style={{ display: "none" }} onChange={onAudioFile} />
 
-              {/* Upload gambar / teks / PDF */}
-              <button className="nx-tb-btn" onClick={() => fileRef.current?.click()} title="Upload gambar, teks, atau PDF">
-                📎 <span>File</span>
-              </button>
-              <input ref={fileRef} type="file"
-                accept=".txt,.md,.js,.ts,.tsx,.jsx,.json,.csv,.html,.css,.py,.java,.c,.cpp,.xml,.yaml,.yml,.sh,.sql,.pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.zip,.rar"
-                style={{ display: "none" }} onChange={onFile} />
+            {/* Input row: [+] [textarea] [🎙️] [KIRIM] */}
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
 
-              {/* Upload audio */}
-              <button className="nx-tb-btn" onClick={() => audioFileRef.current?.click()} title="Upload file audio">
-                🎵 <span>Audio</span>
-              </button>
-              <input ref={audioFileRef} type="file"
-                accept=".mp3,.wav,.ogg,.m4a,.aac,.webm,.flac,.opus"
-                style={{ display: "none" }} onChange={onAudioFile} />
+              {/* Tombol + (attachment popup) */}
+              <div className="nx-plus-wrap">
+                <button
+                  className={`nx-plus-btn${showAttach ? " open" : ""}`}
+                  onClick={() => setShowAttach(v => !v)}
+                  title="Lampirkan file atau pilih mode"
+                >+</button>
 
-              {/* Mikrofon (STT) */}
-              <button className={`nx-tb-btn${listening ? " rec" : ""}`} onClick={toggleMic} title="Rekam suara">
-                {listening ? <><span className="recdot" />Stop</> : <>🎙️ Suara</>}
-              </button>
-
-              {/* Export */}
-              <div className="nx-exwrap">
-                <button className="nx-tb-btn" onClick={() => setShowExport(v => !v)}>
-                  💾 Export
-                </button>
-                {showExport && (
-                  <div className="nx-exmenu">
-                    <button className="nx-exitem" onClick={exportTxt}>📄 Export TXT</button>
-                    <button className="nx-exitem" onClick={exportPdf}>🖨️ Export PDF</button>
+                {showAttach && (
+                  <div className="nx-plus-menu">
+                    <button className="nx-plus-item" onClick={() => { fileRef.current?.click(); setShowAttach(false); }}>
+                      <span className="pi">🖼️</span> Upload Gambar / File
+                    </button>
+                    <button className="nx-plus-item" onClick={() => { audioFileRef.current?.click(); setShowAttach(false); }}>
+                      <span className="pi">🎵</span> Upload Audio
+                    </button>
+                    <div className="nx-plus-sep" />
+                    <button
+                      className={`nx-plus-item${imgMode ? " active-mode" : ""}`}
+                      onClick={() => { setImgMode(v => !v); setShowAttach(false); setTimeout(() => inputRef.current?.focus(), 50); }}
+                    >
+                      <span className="pi">✨</span> {imgMode ? "Mode Gambar ✓ (Aktif)" : "Mode Buat Gambar AI"}
+                    </button>
+                    <div className="nx-plus-sep" />
+                    <button className="nx-plus-item" onClick={() => { exportTxt(); setShowAttach(false); }}>
+                      <span className="pi">📄</span> Export TXT
+                    </button>
+                    <button className="nx-plus-item" onClick={() => { exportPdf(); setShowAttach(false); }}>
+                      <span className="pi">🖨️</span> Export PDF
+                    </button>
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Textarea + Tombol Kirim */}
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              {/* Textarea */}
               <textarea ref={inputRef} value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={onKey}
@@ -837,6 +853,18 @@ export default function DashboardPage() {
                       "Ketik pesan Anda di sini..."
                 }
                 disabled={busy} className="nx-input" rows={1} style={{ flex: 1 }} />
+
+              {/* Tombol mikrofon */}
+              <button
+                className={`nx-plus-btn${listening ? " open" : ""}`}
+                onClick={toggleMic}
+                title={listening ? "Stop rekam" : "Rekam suara"}
+                style={{ fontSize: 18 }}
+              >
+                {listening ? <><span className="recdot" /></> : "🎙️"}
+              </button>
+
+              {/* Kirim */}
               <button onClick={() => send(input)}
                 disabled={(!input.trim() && !pendingFile) || busy}
                 className="nx-send-btn">
@@ -847,7 +875,7 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      {showExport && <div style={{ position: "fixed", inset: 0, zIndex: 98 }} onClick={() => setShowExport(false)} />}
+      {showAttach && <div style={{ position: "fixed", inset: 0, zIndex: 110 }} onClick={() => setShowAttach(false)} />}
     </>
   );
 }
