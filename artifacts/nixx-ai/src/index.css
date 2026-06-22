@@ -10,13 +10,13 @@
   /* CSS VARIABLES         */
   /* ===================== */
   :root {
-    --primary-bg: #f3f0fa;
-    --secondary-bg: #ede9f7;
+    --primary-bg: #f8f7ff;
+    --secondary-bg: #f0eeff;
     --card-bg: #ffffff;
     --text-primary: #1a1a2e;
     --text-secondary: #4a4a6a;
     --text-muted: #8888aa;
-    --border-color: #ddd8f0;
+    --border-color: #e8e4ff;
     --accent: #7c3aed;
     --accent-2: #a855f7;
     --accent-hover: #6d28d9;
@@ -25,8 +25,8 @@
     --danger-color: #ef4444;
     --danger-hover: #dc2626;
     --user-bubble: linear-gradient(135deg, #7c3aed, #a855f7);
-    --ai-bubble: #ede9fe;
-    --shadow: 0 8px 32px rgba(124, 58, 237, 0.12);
+    --ai-bubble: #f3f0ff;
+    --shadow: 0 8px 32px rgba(124, 58, 237, 0.06);
     --shadow-sm: 0 2px 8px rgba(124, 58, 237, 0.08);
   }
 
@@ -65,8 +65,8 @@
     align-items: center;
     padding: 16px;
     transition: background 0.3s;
-    background-image: radial-gradient(ellipse at 20% 50%, rgba(124, 58, 237, 0.12) 0%, transparent 60%),
-                      radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.10) 0%, transparent 60%);
+    background-image: radial-gradient(ellipse at 20% 50%, rgba(124, 58, 237, 0.06) 0%, transparent 60%),
+                      radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.06) 0%, transparent 60%);
   }
 
   /* ===================== */
@@ -216,7 +216,7 @@
     font-size: 0.68rem;
     padding: 2px 7px;
     border-radius: 20px;
-    background: rgba(124, 58, 237, 0.12);
+    background: rgba(124, 58, 237, 0.06);
     color: var(--accent);
     font-weight: 600;
     white-space: nowrap;
@@ -246,7 +246,7 @@
   /* HEADER                */
   /* ===================== */
   .nx-header {
-    background: var(--card-bg);
+    background: var(--gradient);
     padding: 14px 20px;
     display: flex;
     align-items: center;
@@ -257,7 +257,6 @@
     border-bottom: 1.5px solid var(--border-color);
     box-shadow: 0 2px 8px rgba(124,58,237,0.07);
   }
-  [data-theme="dark"] .nx-header { background: var(--gradient) !important; border-bottom: none !important; }
   .nx-header::before {
     content: '';
     position: absolute;
@@ -278,30 +277,20 @@
     border: 2.5px solid rgba(255,255,255,0.6);
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   }
-  .nx-logo {
-      font-size: 1.7rem;
+  .nx-logo-text { display: flex; flex-direction: column; }
+    .nx-logo {
+      font-size: 1.6rem;
       font-weight: 900;
-      background: var(--gradient);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: white;
       letter-spacing: -0.5px;
       line-height: 1;
-      margin-bottom: 2px;
-    }
-    [data-theme="dark"] .nx-logo {
-      background: none;
-      -webkit-text-fill-color: white;
-      color: white;
     }
   .nx-tagline {
-      color: var(--text-secondary);
+      color: rgba(255,255,255,0.85);
       font-size: 0.78rem;
       font-weight: 500;
       letter-spacing: 0.02em;
-    }
-    [data-theme="dark"] .nx-tagline {
-      color: rgba(255,255,255,0.85);
+      margin-top: 2px;
     }
 
   /* ===================== */
@@ -834,7 +823,7 @@
   .nx-premium-card {
     background: #fff;
     border-radius: 24px;
-    box-shadow: 0 8px 40px rgba(124, 58, 237, 0.12);
+    box-shadow: 0 8px 40px rgba(124, 58, 237, 0.06);
     max-width: 480px;
     width: 100%;
     overflow: hidden;
