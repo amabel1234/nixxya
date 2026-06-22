@@ -92,7 +92,7 @@ export default function AdminPage() {
     new Date(d).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className="nx-adm">
+    <div className="nx-adm" data-theme="light">
       <Show when="signed-out">
         {(() => { navigate("/sign-in"); return null; })()}
       </Show>
