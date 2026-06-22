@@ -817,19 +817,21 @@ export default function DashboardPage() {
                 >+</button>
 
                 {showAttach && (
-                  <div className="nx-plus-menu">
+                  <div className="nx-plus-menu" style={{ zIndex: 130 }}>
+                    <button className={`nx-plus-item${imgMode ? " active-mode" : ""}`} onClick={() => { setImgMode(v => !v); setShowAttach(false); setTimeout(() => inputRef.current?.focus(), 50); }}>
+                      <span className="pi">🖼️</span> {imgMode ? "Buat Gambar ✓" : "Buat Gambar"}
+                    </button>
                     <button className="nx-plus-item" onClick={() => { fileRef.current?.click(); setShowAttach(false); }}>
-                      <span className="pi">🖼️</span> Upload Gambar / File
+                      <span className="pi">📎</span> Upload File / Foto
                     </button>
                     <button className="nx-plus-item" onClick={() => { audioFileRef.current?.click(); setShowAttach(false); }}>
                       <span className="pi">🎵</span> Upload Audio
                     </button>
-                    <div className="nx-plus-sep" />
-                    <button
-                      className={`nx-plus-item${imgMode ? " active-mode" : ""}`}
-                      onClick={() => { setImgMode(v => !v); setShowAttach(false); setTimeout(() => inputRef.current?.focus(), 50); }}
-                    >
-                      <span className="pi">✨</span> {imgMode ? "Mode Gambar ✓ (Aktif)" : "Mode Buat Gambar AI"}
+                    <button className={`nx-plus-item${listening ? " active-mode" : ""}`} onClick={() => { toggleMic(); setShowAttach(false); }}>
+                      <span className="pi">🎙️</span> {listening ? "Stop Rekam ●" : "Rekam Suara"}
+                    </button>
+                    <button className="nx-plus-item" onClick={() => { alert("Karakter AI — Coming Soon! 🤖"); setShowAttach(false); }}>
+                      <span className="pi">🤖</span> Karakter AI
                     </button>
                     <div className="nx-plus-sep" />
                     <button className="nx-plus-item" onClick={() => { exportTxt(); setShowAttach(false); }}>
@@ -853,16 +855,6 @@ export default function DashboardPage() {
                       "Ketik pesan Anda di sini..."
                 }
                 disabled={busy} className="nx-input" rows={1} style={{ flex: 1 }} />
-
-              {/* Tombol mikrofon */}
-              <button
-                className={`nx-plus-btn${listening ? " open" : ""}`}
-                onClick={toggleMic}
-                title={listening ? "Stop rekam" : "Rekam suara"}
-                style={{ fontSize: 18 }}
-              >
-                {listening ? <><span className="recdot" /></> : "🎙️"}
-              </button>
 
               {/* Kirim */}
               <button onClick={() => send(input)}
