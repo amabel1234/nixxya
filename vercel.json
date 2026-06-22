@@ -1,12 +1,21 @@
 {
   "version": 2,
-  "buildCommand": "pnpm install --no-frozen-lockfile && pnpm --filter @workspace/nixx-ai run build && BASE_PATH=/admin/ pnpm --filter @workspace/unix-admin run build && node scripts/merge-admin.mjs",
+  "buildCommand": "pnpm --filter @workspace/nixx-ai run build && PORT=3000 BASE_PATH=/admin/ pnpm --filter @workspace/unix-admin run build && node scripts/merge-admin.mjs",
   "outputDirectory": "artifacts/nixx-ai/dist",
-  "installCommand": "echo 'installed'",
+  "installCommand": "pnpm install --no-frozen-lockfile",
   "framework": null,
   "rewrites": [
-    { "source": "/admin", "destination": "/admin/index.html" },
-    { "source": "/admin/(.*)", "destination": "/admin/index.html" },
-    { "source": "/((?!api/)(?!admin).*)", "destination": "/index.html" }
+    {
+      "source": "/admin",
+      "destination": "/admin/index.html"
+    },
+    {
+      "source": "/admin/(.*)",
+      "destination": "/admin/index.html"
+    },
+    {
+      "source": "/((?!api/)(?!admin).*)",
+      "destination": "/index.html"
+    }
   ]
 }
