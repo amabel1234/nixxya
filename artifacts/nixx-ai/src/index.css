@@ -11,45 +11,45 @@
   /* ===================== */
   /* Dark mode adalah DEFAULT */
   :root {
-    --primary-bg: #0f0d1a;
-    --secondary-bg: #1a1628;
-    --card-bg: #1e1a2e;
-    --text-primary: #f0eeff;
-    --text-secondary: #c4b8ff;
-    --text-muted: #7b6fa0;
-    --border-color: #2d2550;
+    --primary-bg: #0d0d0f;
+    --secondary-bg: #141416;
+    --card-bg: #1a1a1e;
+    --text-primary: #f4f4f8;
+    --text-secondary: #c0b8d8;
+    --text-muted: #7a7490;
+    --border-color: #2a2830;
     --accent: #a855f7;
     --accent-2: #c084fc;
     --accent-hover: #9333ea;
     --gradient: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
-    --gradient-soft: linear-gradient(135deg, #1e1a2e 0%, #2d1a3e 100%);
+    --gradient-soft: linear-gradient(135deg, #1a1a1e 0%, #221830 100%);
     --danger-color: #ef4444;
     --danger-hover: #dc2626;
     --user-bubble: linear-gradient(135deg, #7c3aed, #a855f7);
-    --ai-bubble: #241e38;
-    --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --ai-bubble: #1e1e24;
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
   }
 
   [data-theme="dark"] {
-    --primary-bg: #0f0d1a;
-    --secondary-bg: #1a1628;
-    --card-bg: #1e1a2e;
-    --text-primary: #f0eeff;
-    --text-secondary: #c4b8ff;
-    --text-muted: #7b6fa0;
-    --border-color: #2d2550;
+    --primary-bg: #0d0d0f;
+    --secondary-bg: #141416;
+    --card-bg: #1a1a1e;
+    --text-primary: #f4f4f8;
+    --text-secondary: #c0b8d8;
+    --text-muted: #7a7490;
+    --border-color: #2a2830;
     --accent: #a855f7;
     --accent-2: #c084fc;
     --accent-hover: #9333ea;
     --gradient: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
-    --gradient-soft: linear-gradient(135deg, #1e1a2e 0%, #2d1a3e 100%);
+    --gradient-soft: linear-gradient(135deg, #1a1a1e 0%, #221830 100%);
     --danger-color: #ef4444;
     --danger-hover: #dc2626;
     --user-bubble: linear-gradient(135deg, #7c3aed, #a855f7);
-    --ai-bubble: #241e38;
-    --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --ai-bubble: #1e1e24;
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
   }
 
   [data-theme="light"] {
@@ -87,8 +87,6 @@
     align-items: center;
     padding: 16px;
     transition: background 0.3s;
-    background-image: radial-gradient(ellipse at 20% 50%, rgba(124, 58, 237, 0.06) 0%, transparent 60%),
-                      radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.06) 0%, transparent 60%);
   }
 
   /* ===================== */
@@ -324,7 +322,7 @@
     align-items: center;
     justify-content: center;
     padding: 32px 20px;
-    background: #13111f;
+    background: var(--primary-bg);
   }
   .nx-landing-inner {
     display: flex;
@@ -377,12 +375,12 @@
     margin-top: 4px;
   }
   .nx-landing-card {
-    background: #1e1a2e;
-    border: 1px solid #2d2550;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 14px;
     padding: 14px 18px;
     font-size: 0.88rem;
-    color: #c4b8ff;
+    color: var(--text-secondary);
     font-weight: 500;
     text-align: left;
     cursor: pointer;
@@ -391,9 +389,9 @@
     line-height: 1.4;
   }
   .nx-landing-card:hover {
-    background: #2d2550;
-    border-color: #a855f7;
-    color: #f0eeff;
+    background: var(--secondary-bg);
+    border-color: var(--accent);
+    color: var(--text-primary);
     transform: translateY(-1px);
   }
   .nx-start-btn {
@@ -708,9 +706,9 @@
     font-family: inherit;
   }
   .nx-login-btn:hover {
-    border-color: #a855f7;
-    color: #f0eeff;
-    background: #1e1a2e;
+    border-color: var(--accent);
+    color: var(--text-primary);
+    background: var(--card-bg);
   }
 
   /* ===================== */
