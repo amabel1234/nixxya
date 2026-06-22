@@ -211,7 +211,7 @@ export default function ChatThread({ conversationId, selectedModel }: ChatThread
           disabled={!input.trim() || isStreaming}
           data-testid="button-send"
         >
-          ✈ KIRIM
+          ✈ SEND
         </button>
       </div>
     </>
