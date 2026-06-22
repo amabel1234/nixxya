@@ -871,9 +871,14 @@
   /* ===================== */
   .nx-adm {
     min-height: 100dvh;
-    background: var(--primary-bg);
+    background: #f3f0ff;
     display: flex;
     flex-direction: column;
+    color: #1e1b4b;
+  }
+  [data-theme="dark"] .nx-adm {
+    background: #1a1635;
+    color: #e9e3ff;
   }
 
   /* Header */
@@ -950,17 +955,21 @@
     padding: 14px 14px 0;
   }
   .nx-adm-stat {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
+    background: #ffffff;
+    border: 1px solid #e8e4ff;
     border-radius: 14px;
     padding: 14px 12px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 2px 8px rgba(124,58,237,0.08);
   }
-  .nx-adm-stat--premium { border-color: var(--accent); }
+  [data-theme="dark"] .nx-adm-stat {
+    background: #251f45;
+    border-color: #3d3466;
+  }
+  .nx-adm-stat--premium { border-color: var(--accent) !important; }
   .nx-adm-stat-icon { font-size: 1.4rem; }
   .nx-adm-stat-val {
     font-size: 1.6rem;
@@ -973,10 +982,11 @@
   }
   .nx-adm-stat-label {
     font-size: 0.72rem;
-    color: var(--text-muted);
+    color: #6b6b8a;
     font-weight: 600;
     text-align: center;
   }
+  [data-theme="dark"] .nx-adm-stat-label { color: #9d8ec4; }
 
   /* Tabs */
   .nx-adm-tabs {
@@ -986,19 +996,24 @@
   }
   .nx-adm-tab {
     flex: 1;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
+    background: #ffffff;
+    border: 1px solid #e8e4ff;
     border-radius: 10px;
     padding: 9px 10px;
     font-size: 0.82rem;
     font-weight: 700;
-    color: var(--text-secondary);
+    color: #4a4a6a;
     cursor: pointer;
     transition: all 0.18s;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
+  }
+  [data-theme="dark"] .nx-adm-tab {
+    background: #251f45;
+    border-color: #3d3466;
+    color: #c4b8ff;
   }
   .nx-adm-tab--active {
     background: var(--gradient);
@@ -1057,14 +1072,18 @@
   .nx-adm-list { display: flex; flex-direction: column; gap: 10px; }
 
   .nx-adm-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
+    background: #ffffff;
+    border: 1px solid #e8e4ff;
     border-radius: 14px;
     padding: 14px;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 2px 8px rgba(124,58,237,0.08);
+  }
+  [data-theme="dark"] .nx-adm-card {
+    background: #251f45;
+    border-color: #3d3466;
   }
 
   .nx-adm-card-top {
@@ -1095,20 +1114,22 @@
   .nx-adm-card-title {
     font-size: 0.9rem;
     font-weight: 700;
-    color: var(--text-primary);
+    color: #1e1b4b;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 140px;
   }
+  [data-theme="dark"] .nx-adm-card-title { color: #e9e3ff; }
   .nx-adm-card-sub {
     font-size: 0.75rem;
-    color: var(--text-muted);
+    color: #6b6b8a;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 140px;
   }
+  [data-theme="dark"] .nx-adm-card-sub { color: #9d8ec4; }
 
   /* Badge */
   .nx-adm-badge {
