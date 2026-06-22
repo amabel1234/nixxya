@@ -41,82 +41,48 @@ function getSystemPrompt(model: string): string {
   return map[model] ?? `Kamu adalah Nixx AI, asisten AI yang cerdas dan helpful. ${base}`;
 }
 
+/* ── Mapping model Nixx → Groq model ID ────────────────────────────── */
+function getGroqModel(modelId: string): string {
+  const map: Record<string, string> = {
+    deepseekv3: "deepseek-r1-distill-llama-70b",
+    christyai:  "llama-3.3-70b-versatile",
+    copilot:    "llama-3.3-70b-versatile",
+    muslim:     "llama-3.3-70b-versatile",
+    gpt4o:      "llama-3.3-70b-versatile",
+    gpt3:       "llama3-8b-8192",
+    turboseek:  "llama-3.1-8b-instant",
+    felo:       "llama-3.3-70b-versatile",
+    groqmini:   "llama-3.1-8b-instant",
+    llama4:     "meta-llama/llama-4-scout-17b-16e-instruct",
+    llama33:    "llama-3.3-70b-versatile",
+    gemma:      "gemma2-9b-it",
+    mistral:    "mixtral-8x7b-32768",
+    aoyo:       "llama-3.3-70b-versatile",
+    gptoss120:  "llama-3.3-70b-versatile",
+    gptoss20:   "llama-3.1-70b-versatile",
+    gemini25v1: "llama-3.3-70b-versatile",
+    gemini25v2: "llama-3.3-70b-versatile",
+    grok4fast:  "llama-3.1-8b-instant",
+    grok3mini:  "llama-3.1-8b-instant",
+    grok3jail1: "llama-3.3-70b-versatile",
+    grok3jail2: "llama-3.3-70b-versatile",
+    venice:     "llama-3.3-70b-versatile",
+    ripple:     "llama-3.3-70b-versatile",
+    perplexity: "llama-3.3-70b-versatile",
+    perplexed:  "llama-3.3-70b-versatile",
+  };
+  return map[modelId] ?? "llama-3.3-70b-versatile";
+}
+
 function cleanResponse(text: string): string {
   let t = text.trim();
-  // Hapus blok <think>...</think> dari model reasoning
   if (t.includes("</think>")) t = t.split("</think>").pop()?.trim() ?? t;
-  // Hapus LaTeX
-  t = t.replace(/\/\/\$\$/g, "").replace(/\$\$[\s\S]*?\$\$/g, "")
+  t = t.replace(/\$\$[\s\S]*?\$\$/g, "")
        .replace(/\$[^$\n]*?\$/g, "")
        .replace(/\\\[[\s\S]*?\\\]/g, "")
        .replace(/\\\([\s\S]*?\\\)/g, "");
-  // Hapus pembuka klise
   t = t.replace(/^(okay|sure|baik|tentu|of course|tentu saja|sudah tentu)[,!.]?\s*/i, "");
   return t.trim();
-}
-
-/* ── fetch dengan timeout ───────────────────────────────────────────── */
-async function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<Response> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  try {
-    return await fetch(url, { ...opts, signal: ctrl.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/* ── Coba beberapa Pollinations model secara berurutan ─────────────── */
-async function tryPollinations(
-  chatMessages: { role: string; content: string }[],
-): Promise<string> {
-  const seed = Math.floor(Math.random() * 999999);
-
-  // Daftar model yang dicoba berurutan
-  const models = ["openai-large", "openai", "mistral", "llama"];
-
-  for (const polModel of models) {
-    try {
-      const res = await fetchWithTimeout(
-        "https://text.pollinations.ai/openai",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: polModel,
-            messages: chatMessages,
-            stream: false,
-            seed,
-            private: true,
-          }),
-        },
-        25_000,
-      );
-      if (!res.ok) continue;
-      const data = await res.json() as { choices?: { message?: { content?: string } }[] };
-      const text = data.choices?.[0]?.message?.content ?? "";
-      if (text.trim()) return text;
-    } catch {
-      /* coba model berikutnya */
-    }
-  }
-
-  // Fallback: endpoint teks langsung pakai pesan terakhir user
-  try {
-    const lastUser = [...chatMessages].reverse().find(m => m.role === "user")?.content ?? "halo";
-    const encoded  = encodeURIComponent(lastUser.slice(0, 400));
-    const res = await fetchWithTimeout(
-      `https://text.pollinations.ai/${encoded}?model=openai-large&seed=${seed}&private=true&system=${encodeURIComponent(chatMessages[0]?.content ?? "")}`,
-      { method: "GET" },
-      20_000,
-    );
-    if (res.ok) {
-      const text = await res.text();
-      if (text.trim()) return text;
-    }
-  } catch { /* noop */ }
-
-  return "";
 }
 
 /* ── POST /api/openai/chat ──────────────────────────────────────────── */
@@ -132,6 +98,13 @@ router.post("/openai/chat", async (req, res): Promise<void> => {
   }
 
   const model = modelId ?? "deepseekv3";
+  const groqModel = getGroqModel(model);
+  const groqApiKey = process.env.GROQ_API_KEY;
+
+  if (!groqApiKey) {
+    res.status(500).json({ error: "GROQ_API_KEY tidak dikonfigurasi" });
+    return;
+  }
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -148,17 +121,56 @@ router.post("/openai/chat", async (req, res): Promise<void> => {
     ...messages.map(m => ({ role: m.role, content: m.content })),
   ];
 
-  const rawText = await tryPollinations(chatMessages);
-  const responseText = rawText
-    ? cleanResponse(rawText)
-    : "Maaf, server AI sedang sibuk. Coba lagi sebentar ya! 😊";
+  try {
+    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${groqApiKey}`,
+      },
+      body: JSON.stringify({
+        model: groqModel,
+        messages: chatMessages,
+        max_tokens: 2048,
+        temperature: 0.7,
+        stream: true,
+      }),
+    });
 
-  // Stream per-kata dengan delay natural
-  const tokens = responseText.split(/(\s+)/);
-  for (const token of tokens) {
-    if (!token) continue;
-    send({ content: token });
-    await new Promise(r => setTimeout(r, 10));
+    if (!groqRes.ok) {
+      const err = await groqRes.text();
+      throw new Error(`Groq error ${groqRes.status}: ${err.slice(0, 100)}`);
+    }
+
+    const reader = groqRes.body!.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const parts = buf.split("\n");
+      buf = parts.pop() ?? "";
+
+      for (const line of parts) {
+        const clean = line.replace(/^data: /, "").trim();
+        if (!clean || clean === "[DONE]") continue;
+        try {
+          const chunk = JSON.parse(clean) as {
+            choices?: { delta?: { content?: string } }[];
+          };
+          const token = chunk.choices?.[0]?.delta?.content;
+          if (token) {
+            const cleaned = cleanResponse(token);
+            if (cleaned) send({ content: cleaned });
+            else send({ content: token });
+          }
+        } catch { /* skip malformed chunk */ }
+      }
+    }
+  } catch (err) {
+    send({ content: "Maaf, server AI sedang sibuk. Coba lagi sebentar ya! 😊" });
   }
 
   send({ done: true });
