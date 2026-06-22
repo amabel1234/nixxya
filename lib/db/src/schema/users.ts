@@ -7,6 +7,8 @@ export const users = pgTable("users", {
   name: text("name"),
   isPremium: boolean("is_premium").default(false).notNull(),
   premiumUntil: timestamp("premium_until", { withTimezone: true }),
+  isSuspended: boolean("is_suspended").default(false).notNull(),
+  lastOnlineAt: timestamp("last_online_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
