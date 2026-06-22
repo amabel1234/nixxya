@@ -10,13 +10,13 @@
   /* CSS VARIABLES         */
   /* ===================== */
   :root {
-    --primary-bg: #f8f7ff;
-    --secondary-bg: #f0eeff;
+    --primary-bg: #ffffff;
+    --secondary-bg: #f5f5f5;
     --card-bg: #ffffff;
     --text-primary: #1a1a2e;
     --text-secondary: #4a4a6a;
     --text-muted: #8888aa;
-    --border-color: #e8e4ff;
+    --border-color: #e5e5e5;
     --accent: #7c3aed;
     --accent-2: #a855f7;
     --accent-hover: #6d28d9;
@@ -25,7 +25,7 @@
     --danger-color: #ef4444;
     --danger-hover: #dc2626;
     --user-bubble: linear-gradient(135deg, #7c3aed, #a855f7);
-    --ai-bubble: #f3f0ff;
+    --ai-bubble: #f0f0f0;
     --shadow: 0 8px 32px rgba(124, 58, 237, 0.12);
     --shadow-sm: 0 2px 8px rgba(124, 58, 237, 0.08);
   }
@@ -65,8 +65,7 @@
     align-items: center;
     padding: 16px;
     transition: background 0.3s;
-    background-image: radial-gradient(ellipse at 20% 50%, rgba(124, 58, 237, 0.06) 0%, transparent 60%),
-                      radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.06) 0%, transparent 60%);
+    
   }
 
   /* ===================== */
