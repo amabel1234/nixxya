@@ -10,22 +10,22 @@
   /* CSS VARIABLES         */
   /* ===================== */
   :root {
-    --primary-bg: #ffffff;
-    --secondary-bg: #f5f5f5;
+    --primary-bg: #f3f0fa;
+    --secondary-bg: #ede9f7;
     --card-bg: #ffffff;
     --text-primary: #1a1a2e;
     --text-secondary: #4a4a6a;
     --text-muted: #8888aa;
-    --border-color: #e5e5e5;
+    --border-color: #ddd8f0;
     --accent: #7c3aed;
     --accent-2: #a855f7;
     --accent-hover: #6d28d9;
     --gradient: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
-    --gradient-soft: linear-gradient(135deg, #f5f5f5 0%, #efefef 100%);
+    --gradient-soft: linear-gradient(135deg, #ede9fe 0%, #fae8ff 100%);
     --danger-color: #ef4444;
     --danger-hover: #dc2626;
     --user-bubble: linear-gradient(135deg, #7c3aed, #a855f7);
-    --ai-bubble: #f0f0f0;
+    --ai-bubble: #ede9fe;
     --shadow: 0 8px 32px rgba(124, 58, 237, 0.12);
     --shadow-sm: 0 2px 8px rgba(124, 58, 237, 0.08);
   }
@@ -65,8 +65,8 @@
     align-items: center;
     padding: 16px;
     transition: background 0.3s;
-    background-image: radial-gradient(ellipse at 20% 50%, rgba(124, 58, 237, 0.06) 0%, transparent 60%),
-                      radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.06) 0%, transparent 60%);
+    background-image: radial-gradient(ellipse at 20% 50%, rgba(124, 58, 237, 0.12) 0%, transparent 60%),
+                      radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.10) 0%, transparent 60%);
   }
 
   /* ===================== */
@@ -246,7 +246,7 @@
   /* HEADER                */
   /* ===================== */
   .nx-header {
-    background: var(--gradient);
+    background: var(--card-bg);
     padding: 14px 20px;
     display: flex;
     align-items: center;
@@ -254,7 +254,10 @@
     flex-shrink: 0;
     position: relative;
     overflow: hidden;
+    border-bottom: 1.5px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(124,58,237,0.07);
   }
+  [data-theme="dark"] .nx-header { background: var(--gradient) !important; border-bottom: none !important; }
   .nx-header::before {
     content: '';
     position: absolute;
@@ -276,19 +279,30 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   }
   .nx-logo {
-    font-size: 1.7rem;
-    font-weight: 900;
-    color: white;
-    letter-spacing: -0.5px;
-    line-height: 1;
-    margin-bottom: 2px;
-  }
+      font-size: 1.7rem;
+      font-weight: 900;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+    [data-theme="dark"] .nx-logo {
+      background: none;
+      -webkit-text-fill-color: white;
+      color: white;
+    }
   .nx-tagline {
-    color: rgba(255,255,255,0.85);
-    font-size: 0.78rem;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-  }
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    [data-theme="dark"] .nx-tagline {
+      color: rgba(255,255,255,0.85);
+    }
 
   /* ===================== */
   /* LANDING PAGE          */
