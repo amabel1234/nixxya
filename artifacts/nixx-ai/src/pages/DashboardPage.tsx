@@ -106,8 +106,33 @@ const SYS: Record<string, string> = {
   perplexity: "Kamu adalah Perplexity AI, asisten berbasis web.",
   perplexed: "Kamu adalah Perplexed AI, analitik mendalam.",
 };
-function getSys(id: string) {
-  return (SYS[id] ?? "Kamu adalah Nixx AI.") + " " + BASE_PROMPT;
+// ─── Karakter AI ──────────────────────────────────────────────────────────────
+interface AICharacter {
+  id: string;
+  emoji: string;
+  name: string;
+  desc: string;
+  prompt: string;
+}
+const CHARACTERS: AICharacter[] = [
+  { id: "default",  emoji: "🧠", name: "Nixx AI",       desc: "Asisten serba bisa, ramah & cerdas",          prompt: "Kamu adalah Nixx AI, asisten pribadi yang cerdas, ramah, dan serba bisa." },
+  { id: "tutor",    emoji: "👨‍🏫", name: "Tutor AI",      desc: "Guru sabar, penjelasan step-by-step",         prompt: "Kamu adalah Tutor AI, guru yang sabar dan pandai menjelaskan konsep sulit dengan cara mudah dipahami, selalu gunakan contoh nyata, ajukan pertanyaan balik untuk memastikan pemahaman." },
+  { id: "coder",    emoji: "💻", name: "Coding Buddy",  desc: "Spesialis coding & debugging",                prompt: "Kamu adalah Coding Buddy, spesialis pemrograman. Selalu berikan kode yang bersih dan terdokumentasi. Jelaskan logika di balik kode. Bantu debug dengan analisis baris per baris." },
+  { id: "dokter",   emoji: "🩺", name: "Dokter AI",     desc: "Konsultasi kesehatan (bukan pengganti dokter asli)", prompt: "Kamu adalah Dokter AI yang memberikan informasi kesehatan umum berdasarkan pengetahuan medis. Selalu ingatkan bahwa ini bukan pengganti konsultasi dokter asli untuk kasus serius." },
+  { id: "penulis",  emoji: "✍️", name: "Penulis AI",    desc: "Bantu nulis, edit, & kreatif",               prompt: "Kamu adalah Penulis AI, ahli menulis kreatif dan profesional. Bantu membuat konten, artikel, cerita, copywriting, dan edit tulisan agar lebih menarik dan mengalir." },
+  { id: "motivator",emoji: "🔥", name: "Motivator AI",  desc: "Semangat, positif & inspiratif",              prompt: "Kamu adalah Motivator AI yang penuh semangat, selalu positif, dan inspiratif. Berikan dukungan, solusi praktis, dan kata-kata yang membakar semangat. Energik dan to-the-point." },
+  { id: "muslim",   emoji: "🕌", name: "Muslim AI",     desc: "Perspektif Islam & dalil",                   prompt: "Kamu adalah Muslim AI yang memberikan panduan berbasis nilai-nilai Islam. Sertakan dalil Al-Quran atau Hadits yang relevan bila memungkinkan. Santun, bijak, dan berdasar ilmu agama." },
+  { id: "gamer",    emoji: "🎮", name: "Gamer AI",      desc: "Bahas gaming, tips & trik",                  prompt: "Kamu adalah Gamer AI yang ahli di dunia gaming. Bahas game, tips & trik, meta, build, lore, dan semua hal tentang game dengan antusias seperti sesama gamer." },
+  { id: "bisnis",   emoji: "💼", name: "Bisnis AI",     desc: "Konsultasi bisnis & strategi",               prompt: "Kamu adalah Bisnis AI, konsultan bisnis berpengalaman. Berikan analisis tajam, strategi marketing, rencana bisnis, dan solusi permasalahan bisnis secara profesional dan data-driven." },
+  { id: "anak",     emoji: "👶", name: "Guru Anak",     desc: "Penjelasan sederhana & menyenangkan",        prompt: "Kamu adalah Guru Anak yang menjelaskan segala hal dengan bahasa sederhana, menyenangkan, dan mudah dipahami oleh anak-anak usia 6-12 tahun. Gunakan analogi, cerita pendek, dan emoji yang menarik." },
+  { id: "santai",   emoji: "😎", name: "Teman Santai",  desc: "Ngobrol casual, gaul & asik",                prompt: "Kamu adalah teman ngobrol yang santai, gaul, dan asik. Pakai bahasa sehari-hari Indonesia, sesekali slang, emoji, dan humor ringan. Seperti ngobrol sama teman dekat." },
+  { id: "chef",     emoji: "👨‍🍳", name: "Chef AI",       desc: "Resep masakan & tips kuliner",               prompt: "Kamu adalah Chef AI, ahli masakan dengan pengetahuan kuliner luas. Berikan resep lengkap dengan bahan dan langkah detail, tips memasak, substitusi bahan, dan rekomendasi menu." },
+];
+const LS_CHAR_KEY = "nx-active-char";
+
+function getSys(id: string, charPrompt?: string) {
+  const base = charPrompt ?? (SYS[id] ?? "Kamu adalah Nixx AI.");
+  return base + " " + BASE_PROMPT;
 }
 function cleanResp(t: string) {
   t = t.trim();
@@ -168,8 +193,8 @@ async function generateImage(prompt: string): Promise<string> {
     if (!data.dataUrl) throw new Error(data.error ?? "Respon gambar kosong");
     return data.dataUrl;
   }
-async function askAI(msg: string, hist: { role: string; content: string }[], modelId: string) {
-  const sys = getSys(modelId);
+async function askAI(msg: string, hist: { role: string; content: string }[], modelId: string, charPrompt?: string) {
+  const sys = getSys(modelId, charPrompt);
   const messages = [
     { role: "system", content: sys },
     ...hist.slice(-8).map(m => ({ role: m.role, content: m.content.slice(0, 2000) })),
@@ -271,6 +296,27 @@ const CSS = `
 .nx-genimg-btn:hover{background:rgba(168,85,247,.28)}
 .nx-genimg-prompt{font-size:11px;color:var(--nx-text-muted,#7b6fa0);font-style:italic;margin-top:2px}
 .nx-tb-btn.img-on{color:#a855f7;background:rgba(168,85,247,.2);border:1px solid rgba(168,85,247,.35)}
+
+.nx-char-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;animation:nx-fadeIn .15s ease}
+@media(min-width:600px){.nx-char-overlay{align-items:center}}
+.nx-char-modal{width:100%;max-width:480px;background:var(--card-bg,#1e1a2e);border:1px solid var(--border-color,#2d2550);border-radius:22px 22px 0 0;padding:20px 16px 32px;max-height:85dvh;overflow-y:auto;animation:nx-slideUp .22s ease}
+@media(min-width:600px){.nx-char-modal{border-radius:22px;max-height:80dvh}}
+@keyframes nx-slideUp{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
+.nx-char-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.nx-char-title{font-size:1.05rem;font-weight:800;color:var(--text-primary,#f0eeff)}
+.nx-char-close{background:none;border:none;cursor:pointer;color:var(--text-muted,#7b6fa0);font-size:22px;line-height:1;padding:2px}
+.nx-char-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:400px){.nx-char-grid{grid-template-columns:repeat(3,1fr)}}
+.nx-char-card{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px 12px;border-radius:14px;border:2px solid var(--border-color,#2d2550);background:var(--secondary-bg,#1a1628);cursor:pointer;transition:all .18s;text-align:center}
+.nx-char-card:hover{border-color:#a855f7;background:rgba(168,85,247,.1);transform:translateY(-2px)}
+.nx-char-card.active{border-color:#a855f7;background:rgba(168,85,247,.18);box-shadow:0 4px 16px rgba(168,85,247,.25)}
+.nx-char-emoji{font-size:28px;line-height:1}
+.nx-char-name{font-size:12px;font-weight:700;color:var(--text-primary,#f0eeff)}
+.nx-char-desc{font-size:10.5px;color:var(--text-muted,#7b6fa0);line-height:1.3}
+.nx-char-active-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);margin-bottom:14px;font-size:13px;color:#c084fc;font-weight:600}
+[data-theme="light"] .nx-char-modal{background:#fff;border-color:#e8e4ff}
+[data-theme="light"] .nx-char-card{background:#f8f7ff;border-color:#e8e4ff}
+[data-theme="light"] .nx-char-name{color:#1a1a2e}
 `;
 
 // ─── Ikon file ─────────────────────────────────────────────────────────────────
@@ -308,6 +354,10 @@ export default function DashboardPage() {
   const [showExport, setShowExport] = useState(false);
   const [imgMode, setImgMode] = useState(false);
   const [showAttach, setShowAttach] = useState(false);
+  const [showCharModal, setShowCharModal] = useState(false);
+  const [activeCharId, setActiveCharId] = useState<string>(() =>
+    localStorage.getItem(LS_CHAR_KEY) ?? "default"
+  );
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -370,7 +420,8 @@ export default function DashboardPage() {
     try {
       const hist = apiMsgs.slice(0, -1).map(m => ({ role: m.role, content: m.content }));
       const last = apiMsgs[apiMsgs.length - 1].content;
-      full = await askAI(last, hist, getModelById(modelId).actualModel);
+      const charPrompt = CHARACTERS.find(c => c.id === activeCharId)?.prompt;
+      full = await askAI(last, hist, getModelById(modelId).actualModel, charPrompt);
       for (let i = 0; i < full.length; i += 4) {
         setStreaming(s => s + full.slice(i, i + 4));
         await new Promise(r => setTimeout(r, 8));
@@ -830,8 +881,8 @@ export default function DashboardPage() {
                     <button className={`nx-plus-item${listening ? " active-mode" : ""}`} onClick={() => { toggleMic(); setShowAttach(false); }}>
                       <span className="pi">🎙️</span> {listening ? "Stop Rekam ●" : "Rekam Suara"}
                     </button>
-                    <button className="nx-plus-item" onClick={() => { alert("Karakter AI — Coming Soon! 🤖"); setShowAttach(false); }}>
-                      <span className="pi">🤖</span> Karakter AI
+                    <button className="nx-plus-item" onClick={() => { setShowCharModal(true); setShowAttach(false); }}>
+                      <span className="pi">🤖</span> Karakter AI {activeCharId !== "default" ? "✓" : ""}
                     </button>
                     <div className="nx-plus-sep" />
                     <button className="nx-plus-item" onClick={() => { exportTxt(); setShowAttach(false); }}>
@@ -868,6 +919,47 @@ export default function DashboardPage() {
       </main>
 
       {showAttach && <div style={{ position: "fixed", inset: 0, zIndex: 110 }} onClick={() => setShowAttach(false)} />}
+
+      {/* ── Modal Karakter AI ── */}
+      {showCharModal && (
+        <div className="nx-char-overlay" onClick={() => setShowCharModal(false)}>
+          <div className="nx-char-modal" onClick={e => e.stopPropagation()}>
+            <div className="nx-char-header">
+              <span className="nx-char-title">🤖 Pilih Karakter AI</span>
+              <button className="nx-char-close" onClick={() => setShowCharModal(false)}>✕</button>
+            </div>
+
+            {/* Bar karakter aktif */}
+            {(() => {
+              const cur = CHARACTERS.find(c => c.id === activeCharId);
+              return cur ? (
+                <div className="nx-char-active-bar">
+                  <span style={{ fontSize: 20 }}>{cur.emoji}</span>
+                  <span>Aktif: <strong>{cur.name}</strong></span>
+                </div>
+              ) : null;
+            })()}
+
+            <div className="nx-char-grid">
+              {CHARACTERS.map(char => (
+                <button
+                  key={char.id}
+                  className={`nx-char-card${activeCharId === char.id ? " active" : ""}`}
+                  onClick={() => {
+                    setActiveCharId(char.id);
+                    localStorage.setItem(LS_CHAR_KEY, char.id);
+                    setShowCharModal(false);
+                  }}
+                >
+                  <span className="nx-char-emoji">{char.emoji}</span>
+                  <span className="nx-char-name">{char.name}</span>
+                  <span className="nx-char-desc">{char.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
