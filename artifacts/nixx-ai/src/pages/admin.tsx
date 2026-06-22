@@ -73,10 +73,14 @@ export default function AdminPage() {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   }, []);
 
+  // Redirect ke sign-in jika belum login
+  useEffect(() => {
+    if (isLoaded && !user) navigate("/sign-in");
+  }, [isLoaded, user, navigate]);
+
   // Check admin access
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!user) { setIsAdmin(false); return; }
+    if (!isLoaded || !user) return;
     fetch("/api/admin/stats", { credentials: "include" })
       .then(r => { setIsAdmin(r.status !== 403); })
       .catch(() => setIsAdmin(false));
@@ -87,7 +91,7 @@ export default function AdminPage() {
   }
 
   if (!user) {
-    return <>{(() => { navigate("/sign-in"); return null; })()}</>;
+    return <AdminLoading />;
   }
 
   if (!isAdmin) {
