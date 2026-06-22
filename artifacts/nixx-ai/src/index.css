@@ -458,6 +458,16 @@
     font-size: 18px;
     flex-shrink: 0;
   }
+  .nx-welcome-feature--btn {
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .nx-welcome-feature--btn:hover {
+    background: var(--border-color);
+    border-color: var(--accent);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+  }
 
   /* ===================== */
   /* CHAT AREA             */

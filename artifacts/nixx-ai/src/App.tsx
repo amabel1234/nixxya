@@ -99,7 +99,10 @@ export function useTheme() {
 }
 
 function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [isDark, setIsDark] = useState(() => localStorage.getItem("nx-theme") === "dark");
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem("nx-theme");
+    return saved ? saved === "dark" : true;
+  });
 
   useEffect(() => {
     const html = document.documentElement;
