@@ -19,7 +19,7 @@ export default function AdminPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [processing, setProcessing] 4 useState<number | null>(null);
+  const [processing, setProcessing] = useState<number | null>(null);
   const { user } = useUser();
 
   const loadPayments = async () => {
