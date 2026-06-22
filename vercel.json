@@ -1,36 +1,19 @@
 {
   "version": 2,
-  "buildCommand": "npm install -g pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/nixx-ai run build",
-  "outputDirectory": "artifacts/nixx-ai/dist",
-  "installCommand": "echo 'install handled in buildCommand'",
-  "framework": null,
   "functions": {
-    "api/index.js": { "maxDuration": 30 },
     "api/chat.js": { "maxDuration": 30 },
     "api/generate-image.js": { "maxDuration": 30 },
-    "api/get-config.js": { "maxDuration": 10 },
     "api/register-user.js": { "maxDuration": 10 },
     "api/check-premium.js": { "maxDuration": 10 },
-    "api/premium-request.js": { "maxDuration": 10 },
-    "api/web-search.js": { "maxDuration": 30 },
-    "api/admin-change-pass.js": { "maxDuration": 10 },
-    "api/admin-config.js": { "maxDuration": 10 },
+    "api/get-config.js": { "maxDuration": 10 },
+    "api/admin-stats.js": { "maxDuration": 10 },
     "api/admin-premium.js": { "maxDuration": 10 },
-    "api/admin-stats.js": { "maxDuration": 10 }
+    "api/admin-config.js": { "maxDuration": 10 },
+    "api/admin-change-pass.js": { "maxDuration": 10 },
+    "api/premium-request.js": { "maxDuration": 10 },
+    "api/web-search.js": { "maxDuration": 15 }
   },
   "rewrites": [
-    { "source": "/api/chat", "destination": "/api/chat.js" },
-    { "source": "/api/generate-image", "destination": "/api/generate-image.js" },
-    { "source": "/api/get-config", "destination": "/api/get-config.js" },
-    { "source": "/api/register-user", "destination": "/api/register-user.js" },
-    { "source": "/api/check-premium", "destination": "/api/check-premium.js" },
-    { "source": "/api/premium-request", "destination": "/api/premium-request.js" },
-    { "source": "/api/web-search", "destination": "/api/web-search.js" },
-    { "source": "/api/admin-change-pass", "destination": "/api/admin-change-pass.js" },
-    { "source": "/api/admin-config", "destination": "/api/admin-config.js" },
-    { "source": "/api/admin-premium", "destination": "/api/admin-premium.js" },
-    { "source": "/api/admin-stats", "destination": "/api/admin-stats.js" },
-    { "source": "/api/(.*)", "destination": "/api/index.js" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
   ]
 }

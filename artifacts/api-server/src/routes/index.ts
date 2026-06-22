@@ -1,14 +1,10 @@
-import { Router } from "express";
-import healthRouter from "./health.js";
-import openaiRouter from "./openai/index.js";
-import adminRouter from "./admin/index.js";
-import paymentsRouter from "./payments/index.js";
+import { Router, type IRouter } from "express";
+import healthRouter from "./health";
+import openaiRouter from "./openai";
 
-const router = Router();
+const router: IRouter = Router();
 
 router.use(healthRouter);
-router.use(openaiRouter);
-router.use("/admin", adminRouter);
-router.use("/payments", paymentsRouter);
+router.use("/openai", openaiRouter);
 
 export default router;
