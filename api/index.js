@@ -2,15 +2,16 @@
 
 const GROQ_KEY = process.env.GROQ_API_KEY || "";
 
+// Hanya pakai 2 model Groq yang stabil dan aktif
 const GROQ_MODELS = {
-  deepseekv3:"deepseek-r1-distill-llama-70b", christyai:"llama-3.3-70b-versatile",
+  deepseekv3:"llama-3.3-70b-versatile", christyai:"llama-3.3-70b-versatile",
   gpt4o:"llama-3.3-70b-versatile", gpt3:"llama-3.1-8b-instant",
   copilot:"llama-3.3-70b-versatile", gemini25v1:"llama-3.3-70b-versatile",
-  gemini25v2:"llama-3.1-70b-versatile", grok4fast:"llama-3.3-70b-versatile",
+  gemini25v2:"llama-3.3-70b-versatile", grok4fast:"llama-3.3-70b-versatile",
   grok3mini:"llama-3.1-8b-instant", grok3jail1:"llama-3.3-70b-versatile",
-  grok3jail2:"llama-3.3-70b-versatile", llama4:"meta-llama/llama-4-scout-17b-16e-instruct",
-  llama33:"llama-3.3-70b-versatile", gemma:"llama-3.1-70b-versatile",
-  mistral:"llama-3.3-70b-versatile", groqmini:"llama-3.1-8b-instant",
+  grok3jail2:"llama-3.3-70b-versatile", llama4:"llama-3.3-70b-versatile",
+  llama33:"llama-3.3-70b-versatile", gemma:"llama-3.1-8b-instant",
+  mistral:"llama-3.1-8b-instant", groqmini:"llama-3.1-8b-instant",
   felo:"llama-3.3-70b-versatile", turboseek:"llama-3.1-8b-instant",
   perplexity:"llama-3.3-70b-versatile", perplexed:"llama-3.3-70b-versatile",
   muslim:"llama-3.3-70b-versatile", aoyo:"llama-3.1-8b-instant",
