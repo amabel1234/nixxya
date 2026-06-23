@@ -29,23 +29,34 @@ function clean(t) {
   return t.replace(/^(okay|sure|baik|tentu|of course|tentu saja)[,!.\s]*/i,"").trim();
 }
 
+async function groqCall(messages, groqModel, key) {
+  const r = await Promise.race([
+    fetch("https://api.groq.com/openai/v1/chat/completions",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
+      body:JSON.stringify({model:groqModel,messages,max_tokens:2048,temperature:0.7}),
+    }),
+    ms(12000),
+  ]);
+  if (!r.ok) return null;
+  const d = await r.json();
+  return (d.choices?.[0]?.message?.content||"").trim()||null;
+}
+
 async function tryGroq(messages, modelId) {
   const key = process.env.GROQ_API_KEY;
   if (!key) return null;
   try {
-    const model = GROQ_MODELS[modelId] || "llama-3.3-70b-versatile";
-    const r = await Promise.race([
-      fetch("https://api.groq.com/openai/v1/chat/completions",{
-        method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
-        body:JSON.stringify({model,messages,max_tokens:2048,temperature:0.7}),
-      }),
-      ms(12000),
-    ]);
-    if (!r.ok) return null;
-    const d = await r.json();
-    const t = d.choices?.[0]?.message?.content||"";
-    return t.trim()||null;
+    const mapped = GROQ_MODELS[modelId] || "llama-3.3-70b-versatile";
+    // Coba model yang dipilih dulu, lalu fallback ke 2 model yang pasti aktif
+    const tryModels = [...new Set([mapped,"llama-3.3-70b-versatile","llama-3.1-8b-instant"])];
+    for (const m of tryModels) {
+      try {
+        const t = await groqCall(messages, m, key);
+        if (t) return t;
+      } catch { continue; }
+    }
+    return null;
   } catch { return null; }
 }
 
@@ -56,15 +67,19 @@ async function tryPollinations(messages) {
   const hist = messages.filter(m=>m.role!=="system").slice(0,-1)
     .map(m=>(m.role==="user"?"User":"AI")+": "+m.content.slice(0,300)).join("\n");
   const fullSys = hist ? sysMsg+"\n\nKonteks:\n"+hist : sysMsg;
-  const url = "https://text.pollinations.ai/"+encodeURIComponent(userMsg.slice(0,800))
-    +"?model=mistral&seed="+seed
-    +"&system="+encodeURIComponent(fullSys.slice(0,1200))+"&private=true";
-  try {
-    const r = await Promise.race([fetch(url), ms(15000)]);
-    if (!r.ok) throw new Error("status "+r.status);
-    const t = await r.text();
-    return t.trim()||null;
-  } catch { return null; }
+  // Coba openai dulu (lebih stabil), lalu mistral
+  for (const polModel of ["openai","mistral","openai-fast"]) {
+    try {
+      const url = "https://text.pollinations.ai/"+encodeURIComponent(userMsg.slice(0,800))
+        +"?model="+polModel+"&seed="+seed
+        +"&system="+encodeURIComponent(fullSys.slice(0,1200))+"&private=true";
+      const r = await Promise.race([fetch(url), ms(14000)]);
+      if (!r.ok) continue;
+      const t = (await r.text()).trim();
+      if (t) return t;
+    } catch { continue; }
+  }
+  return null;
 }
 
 async function handleChat(req, res) {
@@ -72,7 +87,7 @@ async function handleChat(req, res) {
   if (req.method!=="POST"){res.status(405).json({error:"Method not allowed"});return;}
   const {messages,model:modelId} = req.body||{};
   if (!Array.isArray(messages)||!messages.length){res.status(400).json({error:"messages diperlukan"});return;}
-  let text = await tryGroq(messages, modelId||"deepseekv3");
+  let text = await tryGroq(messages, modelId||"groqmini");
   if (!text) text = await tryPollinations(messages);
   if (text) res.status(200).json({content:clean(text)});
   else res.status(503).json({error:"Maaf, AI sedang sibuk. Coba lagi ya!"});
