@@ -7,6 +7,7 @@
   "functions": {
     "api/index.js": { "maxDuration": 30 },
     "api/chat.js": { "maxDuration": 30 },
+    "api/generate-image.js": { "maxDuration": 30 },
     "api/admin-stats.js": { "maxDuration": 15 },
     "api/admin-config.js": { "maxDuration": 15 },
     "api/admin-premium.js": { "maxDuration": 15 },
@@ -15,12 +16,11 @@
     "api/register-user.js": { "maxDuration": 15 },
     "api/check-premium.js": { "maxDuration": 15 },
     "api/premium-request.js": { "maxDuration": 15 },
-    "api/web-search.js": { "maxDuration": 20 },
-    "api/generate-image.js": { "maxDuration": 30 },
-    "api/get-config.js": { "maxDuration": 15 }
+    "api/web-search.js": { "maxDuration": 20 }
   },
   "routes": [
     { "src": "/api/chat", "dest": "/api/chat.js" },
+    { "src": "/api/generate-image", "dest": "/api/generate-image.js" },
     { "src": "/api/admin-stats", "dest": "/api/admin-stats.js" },
     { "src": "/api/admin-config", "dest": "/api/admin-config.js" },
     { "src": "/api/admin-premium", "dest": "/api/admin-premium.js" },
@@ -30,8 +30,6 @@
     { "src": "/api/check-premium", "dest": "/api/check-premium.js" },
     { "src": "/api/premium-request", "dest": "/api/premium-request.js" },
     { "src": "/api/web-search", "dest": "/api/web-search.js" },
-    { "src": "/api/generate-image", "dest": "/api/generate-image.js" },
-    { "src": "/api/get-config", "dest": "/api/get-config.js" },
     { "src": "/api/(.*)", "dest": "/api/index.js" },
     { "src": "/((?!api).*)", "dest": "/index.html" }
   ]
