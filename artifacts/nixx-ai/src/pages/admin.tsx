@@ -140,10 +140,16 @@ export default function AdminPage() {
   const [newFeature, setNewFeature] = useState<{ [id: string]: string }>({});
   const [broadcast, setBroadcast] = useState("");
   const [broadcastSent, setBroadcastSent] = useState(false);
+  const [payConfig, setPayConfig] = useState<{ qr: string; danaNumber: string; danaName: string; note: string }>(() => {
+    try { return JSON.parse(localStorage.getItem("nx-pay-config") ?? "null") ?? { qr: "", danaNumber: "", danaName: "", note: "" }; } catch { return { qr: "", danaNumber: "", danaName: "", note: "" }; }
+  });
+  const [payDraft, setPayDraft] = useState({ danaNumber: "", danaName: "", note: "" });
 
   useEffect(() => {
     setUsers(loadUsers());
     setPricing(loadPricing());
+    const saved = (() => { try { return JSON.parse(localStorage.getItem("nx-pay-config") ?? "null"); } catch { return null; } })();
+    if (saved) { setPayConfig(saved); setPayDraft({ danaNumber: saved.danaNumber, danaName: saved.danaName, note: saved.note }); }
   }, []);
 
   const showToast = useCallback((msg: string, ok = true) => {
@@ -403,15 +409,120 @@ export default function AdminPage() {
     </div>
   );
 
+  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { showToast("❌ File terlalu besar (maks 2MB)", false); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const qr = reader.result as string;
+      const updated = { ...payConfig, qr };
+      setPayConfig(updated);
+      localStorage.setItem("nx-pay-config", JSON.stringify(updated));
+      showToast("✅ QR Code berhasil diupload!");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const savePayInfo = () => {
+    const updated = { ...payConfig, ...payDraft };
+    setPayConfig(updated);
+    localStorage.setItem("nx-pay-config", JSON.stringify(updated));
+    showToast("✅ Info pembayaran disimpan!");
+  };
+
   const renderPayment = () => (
     <div>
       <h2 style={S.pageTitle}>Payment</h2>
-      <p style={S.pageSub}>Riwayat pembayaran</p>
-      <div style={{ background: "#1a1a1e", border: "1px solid #2a2830", borderRadius: 14, padding: "2rem", textAlign: "center", marginTop: 16, color: "#7a7490" }}>
-        <div style={{ fontSize: 40 }}>💳</div>
-        <p style={{ marginTop: 8 }}>Belum ada riwayat pembayaran.</p>
-        <p style={{ fontSize: 12 }}>Integrasi payment gateway diperlukan.</p>
+      <p style={S.pageSub}>Kelola metode pembayaran premium — QR Code & DANA</p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
+
+        {/* QR Upload */}
+        <div style={{ background: "#1a1a1e", border: "1px solid #2a2830", borderRadius: 14, padding: "1.25rem" }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>📷 QR Code Pembayaran</div>
+          <div style={{ fontSize: 12, color: "#7a7490", marginBottom: 14 }}>Upload QR DANA/GoPay/OVO kamu. User akan lihat ini saat bayar.</div>
+
+          {payConfig.qr ? (
+            <div style={{ textAlign: "center" }}>
+              <img src={payConfig.qr} alt="QR" style={{ width: "100%", maxWidth: 200, borderRadius: 10, border: "2px solid #a855f730", marginBottom: 12 }} />
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <label style={{ background: "#a855f722", color: "#a855f7", border: "1px solid #a855f740", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  🔄 Ganti QR
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleQrUpload} />
+                </label>
+                <button onClick={() => { const u = { ...payConfig, qr: "" }; setPayConfig(u); localStorage.setItem("nx-pay-config", JSON.stringify(u)); showToast("🗑️ QR dihapus"); }}
+                  style={{ background: "#ef444415", color: "#ef4444", border: "1px solid #ef444430", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  🗑️ Hapus
+                </button>
+              </div>
+            </div>
+          ) : (
+            <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "2px dashed #2a2830", borderRadius: 12, padding: "2rem 1rem", cursor: "pointer", textAlign: "center", gap: 8 }}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => { e.preventDefault(); const file = e.dataTransfer.files?.[0]; if (file) { const fakeEvent = { target: { files: [file] } } as any; handleQrUpload(fakeEvent); } }}>
+              <span style={{ fontSize: 36 }}>📤</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>Upload QR Code</span>
+              <span style={{ fontSize: 11, color: "#7a7490" }}>Klik atau drag & drop (PNG/JPG, maks 2MB)</span>
+              <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleQrUpload} />
+            </label>
+          )}
+        </div>
+
+        {/* DANA Info */}
+        <div style={{ background: "#1a1a1e", border: "1px solid #2a2830", borderRadius: 14, padding: "1.25rem" }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>💙 Info DANA</div>
+          <div style={{ fontSize: 12, color: "#7a7490", marginBottom: 14 }}>Nomor dan nama rekening DANA yang ditampilkan ke user.</div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 12, color: "#9ca3af", display: "block", marginBottom: 4 }}>Nomor DANA / HP</label>
+              <input value={payDraft.danaNumber}
+                onChange={e => setPayDraft(d => ({ ...d, danaNumber: e.target.value }))}
+                placeholder="cth: 08123456789"
+                style={{ ...S.search, width: "100%" }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "#9ca3af", display: "block", marginBottom: 4 }}>Nama Pemilik</label>
+              <input value={payDraft.danaName}
+                onChange={e => setPayDraft(d => ({ ...d, danaName: e.target.value }))}
+                placeholder="cth: Nixx Team"
+                style={{ ...S.search, width: "100%" }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: "#9ca3af", display: "block", marginBottom: 4 }}>Catatan untuk User</label>
+              <textarea value={payDraft.note}
+                onChange={e => setPayDraft(d => ({ ...d, note: e.target.value }))}
+                placeholder="cth: Kirim bukti transfer ke @nixxteam di Telegram"
+                style={{ ...S.search, width: "100%", minHeight: 70, resize: "vertical", fontFamily: "inherit" }} />
+            </div>
+            <button onClick={savePayInfo}
+              style={{ background: "#a855f7", color: "#fff", border: "none", borderRadius: 8, padding: "9px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              💾 Simpan Info DANA
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Preview */}
+      {(payConfig.qr || payConfig.danaNumber) && (
+        <div style={{ background: "#1a1a1e", border: "1px solid #a855f730", borderRadius: 14, padding: "1.25rem", marginTop: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12, color: "#a855f7" }}>👁️ Preview — Tampilan user saat bayar</div>
+          <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
+            {payConfig.qr && <img src={payConfig.qr} alt="QR Preview" style={{ width: 140, borderRadius: 10, border: "2px solid #a855f730" }} />}
+            <div>
+              {payConfig.danaNumber && (
+                <div style={{ marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, color: "#7a7490" }}>DANA</div>
+                  <div style={{ fontWeight: 800, fontSize: 18, color: "#3b82f6" }}>{payConfig.danaNumber}</div>
+                  {payConfig.danaName && <div style={{ fontSize: 13, color: "#9ca3af" }}>a.n. {payConfig.danaName}</div>}
+                </div>
+              )}
+              {payConfig.note && <div style={{ fontSize: 12, color: "#7a7490", marginTop: 8, fontStyle: "italic" }}>📌 {payConfig.note}</div>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
