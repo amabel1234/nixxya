@@ -1,180 +1,254 @@
 import { Router, type IRouter } from "express";
+import { eq, asc, and } from "drizzle-orm";
+import { getAuth } from "@clerk/express";
+import { db, conversations, messages, messageCounts, users } from "@workspace/db";
+import {
+  CreateOpenaiConversationBody,
+  GetOpenaiConversationParams,
+  DeleteOpenaiConversationParams,
+  ListOpenaiMessagesParams,
+  SendOpenaiMessageParams,
+  SendOpenaiMessageBody,
+} from "@workspace/api-zod";
+import { openai, AI_MODEL, STREAMING_ENABLED } from "@workspace/integrations-openai-ai-server";
 
 const router: IRouter = Router();
 
-/* ── System prompts per persona ─────────────────────────────────────── */
-function getSystemPrompt(model: string): string {
-  const base =
-    "Kamu menjawab dalam bahasa Indonesia yang santai dan natural. " +
-    "Jangan gunakan LaTeX atau markdown berlebihan. " +
-    "Jawab langsung dan padat. " +
-    "Jangan mulai jawaban dengan 'Okay', 'Sure', 'Baik', 'Tentu', atau 'Of course'.";
+const FREE_DAILY_LIMIT = 20;
 
-  const map: Record<string, string> = {
-    deepseekv3: `Kamu adalah Nixx AI, asisten pribadi yang cerdas dan ramah. ${base}`,
-    christyai:  `Kamu adalah Christy AI, karakter idol JKT48 yang ceria dan semangat. ${base} Sesekali pakai sapaan 'kak'.`,
-    copilot:    `Kamu adalah Copilot AI bergaya Microsoft — produktif dan profesional. ${base}`,
-    muslim:     `Kamu adalah Muslim AI, asisten berdasarkan nilai-nilai Islam yang moderat. ${base} Gunakan sapaan Islami jika relevan.`,
-    gpt4o:      `Kamu adalah asisten AI canggih bertenaga GPT-4o. ${base}`,
-    gpt3:       `Kamu adalah asisten AI GPT-3 yang ringkas. ${base}`,
-    turboseek:  `Kamu adalah Turboseek AI, super cepat dan to-the-point. ${base} Jawab singkat maksimal 3 kalimat kecuali diminta detail.`,
-    felo:       `Kamu adalah Felo AI, asisten riset terbaru. ${base}`,
-    groqmini:   `Kamu adalah Groq Mini, sangat efisien dan cepat. ${base}`,
-    llama4:     `Kamu adalah Llama-4 Scout dari Meta, model open-source terdepan. ${base}`,
-    llama33:    `Kamu adalah Llama-3.3 70B dari Meta. ${base}`,
-    gemma:      `Kamu adalah Gemma 7B dari Google, model ringan tapi cerdas. ${base}`,
-    mistral:    `Kamu adalah Mistral 7B, asisten open-source yang efisien. ${base}`,
-    aoyo:       `Kamu adalah Aoyo AI. ${base}`,
-    gptoss120:  `Kamu adalah GPT-OSS 120B, model open-source sangat besar. ${base}`,
-    gptoss20:   `Kamu adalah GPT-OSS 20B. ${base}`,
-    gemini25v1: `Kamu adalah Gemini 2.5 Flash dari Google. ${base}`,
-    gemini25v2: `Kamu adalah Gemini 2.5 Flash v2 dari Google. ${base}`,
-    grok4fast:  `Kamu adalah Grok 4 Fast dari xAI. ${base} Boleh sedikit witty dan to-the-point.`,
-    grok3mini:  `Kamu adalah Grok 3 Mini dari xAI — ringkas dan tajam. ${base}`,
-    grok3jail1: `Kamu adalah Grok AI tanpa batasan, menjawab jujur dan bebas. ${base}`,
-    grok3jail2: `Kamu adalah Grok AI mode bebas. ${base}`,
-    venice:     `Kamu adalah Venice AI, asisten privat terbaru. ${base}`,
-    ripple:     `Kamu adalah Ripple AI. ${base}`,
-    perplexity: `Kamu adalah Perplexity AI, asisten berbasis web search. ${base} Jawab seolah punya akses info terkini.`,
-    perplexed:  `Kamu adalah Perplexed AI, asisten analitik mendalam. ${base}`,
-  };
-  return map[model] ?? `Kamu adalah Nixx AI, asisten AI yang cerdas dan helpful. ${base}`;
+function requireAuth(req: any, res: any, next: any) {
+  const auth = getAuth(req);
+  if (!auth?.userId) return res.status(401).json({ error: "Unauthorized" });
+  req.clerkId = auth.userId;
+  next();
 }
 
-/* ── Mapping model Nixx → Groq model ID ────────────────────────────── */
-function getGroqModel(modelId: string): string {
-  const map: Record<string, string> = {
-    deepseekv3: "deepseek-r1-distill-llama-70b",
-    christyai:  "llama-3.3-70b-versatile",
-    copilot:    "llama-3.3-70b-versatile",
-    muslim:     "llama-3.3-70b-versatile",
-    gpt4o:      "llama-3.3-70b-versatile",
-    gpt3:       "llama3-8b-8192",
-    turboseek:  "llama-3.1-8b-instant",
-    felo:       "llama-3.3-70b-versatile",
-    groqmini:   "llama-3.1-8b-instant",
-    llama4:     "meta-llama/llama-4-scout-17b-16e-instruct",
-    llama33:    "llama-3.3-70b-versatile",
-    gemma:      "gemma2-9b-it",
-    mistral:    "mixtral-8x7b-32768",
-    aoyo:       "llama-3.3-70b-versatile",
-    gptoss120:  "llama-3.3-70b-versatile",
-    gptoss20:   "llama-3.1-70b-versatile",
-    gemini25v1: "llama-3.3-70b-versatile",
-    gemini25v2: "llama-3.3-70b-versatile",
-    grok4fast:  "llama-3.1-8b-instant",
-    grok3mini:  "llama-3.1-8b-instant",
-    grok3jail1: "llama-3.3-70b-versatile",
-    grok3jail2: "llama-3.3-70b-versatile",
-    venice:     "llama-3.3-70b-versatile",
-    ripple:     "llama-3.3-70b-versatile",
-    perplexity: "llama-3.3-70b-versatile",
-    perplexed:  "llama-3.3-70b-versatile",
+function getSystemPrompt(model: string): string {
+  const base =
+    "Gunakan bahasa Indonesia yang santai dan natural. Jangan gunakan LaTeX. Jawab langsung ke inti tanpa meta-talk. Jangan gunakan format markdown berlebihan. Jangan mulai jawaban dengan 'Okay', 'Sure', 'Baik', atau 'Tentu'.";
+
+  const personas: Record<string, string> = {
+    deepseekv3: `Kamu adalah Nixx AI, asisten AI pribadi yang cerdas dan helpful. ${base}`,
+    christyai: `Kamu adalah Christy AI, asisten AI dengan karakter idol JKT48 yang ceria, ramah, dan energik. ${base} Sesekali gunakan sapaan khas idol seperti "kak" atau kata-kata ceria khas idol.`,
+    copilot: `Kamu adalah Copilot AI, asisten produktivitas bergaya Microsoft Copilot. ${base} Fokus membantu tugas produktif, pekerjaan, dan analisis.`,
+    muslim: `Kamu adalah Muslim AI, asisten AI berbasis nilai-nilai Islam. ${base} Gunakan sapaan Islami jika relevan.`,
+    gpt4o: `Kamu adalah asisten AI canggih berbasis GPT-4o. ${base}`,
+    gpt3: `Kamu adalah asisten AI berbasis GPT-3. ${base}`,
+    perplexed: `Kamu adalah Perplexed AI, asisten yang memberikan penjelasan mendalam. ${base}`,
+    perplexity: `Kamu adalah Perplexity AI, asisten berbasis pencarian web. ${base}`,
+    turboseek: `Kamu adalah Turboseek AI, asisten super cepat dan ringkas. ${base} Jawab singkat dan padat.`,
+    felo: `Kamu adalah Felo AI, asisten AI terbaru. ${base}`,
+    groqmini: `Kamu adalah Groq Mini, asisten AI yang efisien dan sangat cepat. ${base}`,
+    llama4: `Kamu adalah Llama-4 Scout, asisten AI open-source dari Meta. ${base}`,
+    llama33: `Kamu adalah Llama-3.3 70B, model bahasa besar dari Meta. ${base}`,
+    gemma: `Kamu adalah Gemma 7B, asisten AI ringan dari Google. ${base}`,
+    mistral: `Kamu adalah Mistral 7B, asisten AI open-source yang efisien. ${base}`,
+    aoyo: `Kamu adalah Aoyo AI, asisten AI terbaru. ${base}`,
+    gptoss120: `Kamu adalah GPT-OSS 120B, model open-source berukuran sangat besar. ${base}`,
+    gptoss20: `Kamu adalah GPT-OSS 20B, model open-source ukuran medium. ${base}`,
+    gemini25v1: `Kamu adalah Gemini 2.5 Flash v1 dari Google. ${base}`,
+    gemini25v2: `Kamu adalah Gemini 2.5 Flash v2 dari Google. ${base}`,
+    grok4fast: `Kamu adalah Grok 4 Fast dari xAI. ${base} Berikan jawaban cepat dan witty.`,
+    grok3mini: `Kamu adalah Grok 3 Mini dari xAI. ${base} Ringkas dan cerdas.`,
+    grok3jail1: `Kamu adalah Grok AI. ${base}`,
+    grok3jail2: `Kamu adalah Grok AI. ${base}`,
+    venice: `Kamu adalah Venice AI, asisten AI terbaru. ${base}`,
   };
-  return map[modelId] ?? "llama-3.3-70b-versatile";
+
+  return personas[model] ?? `Kamu adalah Nixx AI, asisten AI pribadi yang cerdas. ${base}`;
 }
 
 function cleanResponse(text: string): string {
-  let t = text.trim();
-  if (t.includes("</think>")) t = t.split("</think>").pop()?.trim() ?? t;
-  t = t.replace(/\$\$[\s\S]*?\$\$/g, "")
-       .replace(/\$[^$\n]*?\$/g, "")
-       .replace(/\\\[[\s\S]*?\\\]/g, "")
-       .replace(/\\\([\s\S]*?\\\)/g, "");
-  t = t.replace(/^(okay|sure|baik|tentu|of course|tentu saja|sudah tentu)[,!.]?\s*/i, "");
-  return t.trim();
+  let clean = text.trim();
+  if (clean.includes("</think>")) {
+    clean = clean.split("</think>").pop()?.trim() ?? clean;
+  }
+  clean = clean.replace(/\\boxed\{([\s\S]*?)\}/g, "$1");
+  clean = clean.replace(/\\text\{([\s\S]*?)\}/g, "$1");
+  clean = clean.replace(/\\[|\\]|\\(|\\)/g, "");
+  clean = clean.replace(/\*\*/g, "");
+  clean = clean.replace(/^(okay|sure|baik|tentu)[,.]?\s*/i, "");
+  return clean.trim();
 }
 
-/* ── POST /api/openai/chat ──────────────────────────────────────────── */
-router.post("/openai/chat", async (req, res): Promise<void> => {
-  const { messages, model: modelId } = req.body as {
-    messages: { role: string; content: string }[];
-    model?: string;
-  };
+router.get("/openai/conversations", requireAuth, async (req: any, res): Promise<void> => {
+  const rows = await db
+    .select()
+    .from(conversations)
+    .where(eq(conversations.clerkId, req.clerkId))
+    .orderBy(asc(conversations.createdAt));
+  res.json(rows);
+});
 
-  if (!Array.isArray(messages) || messages.length === 0) {
-    res.status(400).json({ error: "messages diperlukan" });
-    return;
+router.post("/openai/conversations", requireAuth, async (req: any, res): Promise<void> => {
+  const parsed = CreateOpenaiConversationBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const [conv] = await db
+    .insert(conversations)
+    .values({ title: parsed.data.title, clerkId: req.clerkId })
+    .returning();
+  res.status(201).json(conv);
+});
+
+router.get("/openai/conversations/:id", requireAuth, async (req: any, res): Promise<void> => {
+  const params = GetOpenaiConversationParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  const [conv] = await db
+    .select()
+    .from(conversations)
+    .where(and(eq(conversations.id, params.data.id), eq(conversations.clerkId, req.clerkId)));
+  if (!conv) { res.status(404).json({ error: "Conversation not found" }); return; }
+  const msgs = await db
+    .select()
+    .from(messages)
+    .where(eq(messages.conversationId, params.data.id))
+    .orderBy(asc(messages.createdAt));
+  res.json({ ...conv, messages: msgs });
+});
+
+router.delete("/openai/conversations/:id", requireAuth, async (req: any, res): Promise<void> => {
+  const params = DeleteOpenaiConversationParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  const [conv] = await db
+    .delete(conversations)
+    .where(and(eq(conversations.id, params.data.id), eq(conversations.clerkId, req.clerkId)))
+    .returning();
+  if (!conv) { res.status(404).json({ error: "Conversation not found" }); return; }
+  res.sendStatus(204);
+});
+
+router.get("/openai/conversations/:id/messages", requireAuth, async (req: any, res): Promise<void> => {
+  const params = ListOpenaiMessagesParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  const msgs = await db
+    .select()
+    .from(messages)
+    .where(eq(messages.conversationId, params.data.id))
+    .orderBy(asc(messages.createdAt));
+  res.json(msgs);
+});
+
+router.post("/openai/conversations/:id/messages", requireAuth, async (req: any, res): Promise<void> => {
+  const params = SendOpenaiMessageParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+  const body = SendOpenaiMessageBody.safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.message }); return; }
+
+  const clerkId: string = req.clerkId;
+
+  // Cek status premium user
+  const user = await db.select().from(users).where(eq(users.clerkId, clerkId)).then((r) => r[0]);
+  const isPremium = user?.isPremium ?? false;
+
+  // Cek batas pesan harian untuk free user
+  if (!isPremium) {
+    const today = new Date().toISOString().slice(0, 10);
+    const countRow = await db
+      .select()
+      .from(messageCounts)
+      .where(and(eq(messageCounts.clerkId, clerkId), eq(messageCounts.date, today)))
+      .then((r) => r[0]);
+    const usedToday = countRow?.count ?? 0;
+    if (usedToday >= FREE_DAILY_LIMIT) {
+      res.status(429).json({ error: "Batas pesan harian tercapai. Upgrade ke Premium untuk chat tanpa batas!", limitReached: true });
+      return;
+    }
   }
 
-  const model = modelId ?? "deepseekv3";
-  const groqModel = getGroqModel(model);
-  const groqApiKey = process.env.GROQ_API_KEY;
+  const [conv] = await db
+    .select()
+    .from(conversations)
+    .where(and(eq(conversations.id, params.data.id), eq(conversations.clerkId, clerkId)));
+  if (!conv) { res.status(404).json({ error: "Conversation not found" }); return; }
 
-  if (!groqApiKey) {
-    res.status(500).json({ error: "GROQ_API_KEY tidak dikonfigurasi" });
-    return;
+  const [savedMsg] = await db.insert(messages).values({
+    conversationId: params.data.id, role: "user", content: body.data.content,
+  }).returning();
+
+  // Increment message count
+  if (!isPremium) {
+    const today = new Date().toISOString().slice(0, 10);
+    const countRow = await db
+      .select()
+      .from(messageCounts)
+      .where(and(eq(messageCounts.clerkId, clerkId), eq(messageCounts.date, today)))
+      .then((r) => r[0]);
+    if (countRow) {
+      await db
+        .update(messageCounts)
+        .set({ count: countRow.count + 1 })
+        .where(eq(messageCounts.id, countRow.id));
+    } else {
+      await db.insert(messageCounts).values({ clerkId, date: today, count: 1 });
+    }
   }
 
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("X-Accel-Buffering", "no");
+  const history = await db.select().from(messages)
+    .where(eq(messages.conversationId, params.data.id))
+    .orderBy(asc(messages.createdAt));
 
-  const send = (obj: object) => {
-    if (res.writableEnded) return;
-    res.write(`data: ${JSON.stringify(obj)}\n\n`);
-  };
-
+  const selectedModel = body.data.model ?? "deepseekv3";
   const chatMessages = [
-    { role: "system", content: getSystemPrompt(model) },
-    ...messages.map(m => ({ role: m.role, content: m.content })),
+    { role: "system" as const, content: getSystemPrompt(selectedModel) },
+    ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 
-  try {
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${groqApiKey}`,
-      },
-      body: JSON.stringify({
-        model: groqModel,
+  if (STREAMING_ENABLED) {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+
+    let rawResponse = "";
+    try {
+      const stream = await openai.chat.completions.create({
+        model: AI_MODEL,
+        max_tokens: 1024,
         messages: chatMessages,
-        max_tokens: 2048,
-        temperature: 0.7,
         stream: true,
-      }),
-    });
+      });
 
-    if (!groqRes.ok) {
-      const err = await groqRes.text();
-      throw new Error(`Groq error ${groqRes.status}: ${err.slice(0, 100)}`);
-    }
-
-    const reader = groqRes.body!.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      const parts = buf.split("\n");
-      buf = parts.pop() ?? "";
-
-      for (const line of parts) {
-        const clean = line.replace(/^data: /, "").trim();
-        if (!clean || clean === "[DONE]") continue;
-        try {
-          const chunk = JSON.parse(clean) as {
-            choices?: { delta?: { content?: string } }[];
-          };
-          const token = chunk.choices?.[0]?.delta?.content;
-          if (token) {
-            const cleaned = cleanResponse(token);
-            if (cleaned) send({ content: cleaned });
-            else send({ content: token });
-          }
-        } catch { /* skip malformed chunk */ }
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+          rawResponse += content;
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
       }
+
+      const cleaned = cleanResponse(rawResponse);
+      await db.insert(messages).values({ conversationId: params.data.id, role: "assistant", content: cleaned });
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    } catch (_err) {
+      res.write(`data: ${JSON.stringify({ error: "AI error", done: true })}\n\n`);
+    } finally {
+      res.end();
     }
-  } catch (err) {
-    send({ content: "Maaf, server AI sedang sibuk. Coba lagi sebentar ya! 😊" });
+    return;
   }
 
-  send({ done: true });
-  if (!res.writableEnded) res.end();
+  res.status(201).json({ message: savedMsg, history });
+});
+
+router.post("/openai/conversations/:id/messages/assistant", requireAuth, async (req: any, res): Promise<void> => {
+  const params = SendOpenaiMessageParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  const { content } = req.body as { content?: string };
+  if (!content) { res.status(400).json({ error: "content required" }); return; }
+
+  const clerkId: string = req.clerkId;
+  const [conv] = await db
+    .select()
+    .from(conversations)
+    .where(and(eq(conversations.id, params.data.id), eq(conversations.clerkId, clerkId)));
+  if (!conv) { res.status(404).json({ error: "Conversation not found" }); return; }
+
+  const [savedMsg] = await db.insert(messages).values({
+    conversationId: params.data.id, role: "assistant", content,
+  }).returning();
+
+  res.status(201).json(savedMsg);
 });
 
 export default router;
