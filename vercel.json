@@ -1,7 +1,7 @@
 {
   "version": 2,
   "buildCommand": "pnpm install --no-frozen-lockfile && BASE_PATH=/ pnpm --filter @workspace/nixx-ai run build",
-  "outputDirectory": "artifacts/nixx-ai/dist/public",
+  "outputDirectory": "artifacts/nixx-ai/dist",
   "installCommand": "corepack enable && pnpm install --no-frozen-lockfile",
   "framework": null,
   "functions": {
