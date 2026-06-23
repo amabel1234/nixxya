@@ -4,6 +4,9 @@
   "outputDirectory": "artifacts/nixx-ai/dist",
   "installCommand": "pnpm install --no-frozen-lockfile",
   "framework": null,
+  "toolbarConfig": {
+    "enabled": false
+  },
   "functions": {
     "api/index.js": {
       "maxDuration": 30
