@@ -127,6 +127,10 @@ module.exports = async (req, res) => {
 
   if (path==="/api/chat"||path==="/chat") return handleChat(req,res);
   if (path==="/api/generate-image"||path==="/generate-image") return handleGenerateImage(req,res);
+  if (path==="/api/version"||path==="/version") {
+    const {gemma,mistral,groqmini}=GROQ_MODELS;
+    return res.status(200).json({v:"v5-fallback-chain",gemma,mistral,groqmini});
+  }
 
   res.status(404).json({error:"Not found: "+path});
 };
