@@ -1,36 +1,14 @@
 {
   "version": 2,
-  "buildCommand": "pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/nixx-ai run build",
-  "outputDirectory": "artifacts/nixx-ai/dist",
-  "installCommand": "pnpm install --no-frozen-lockfile",
+  "buildCommand": "pnpm install --no-frozen-lockfile && BASE_PATH=/ pnpm --filter @workspace/web run build",
+  "outputDirectory": "artifacts/web/dist/public",
+  "installCommand": "corepack enable && pnpm install --no-frozen-lockfile",
   "framework": null,
   "functions": {
-    "api/index.js": { "maxDuration": 30 },
-    "api/chat.js": { "maxDuration": 30 },
-    "api/generate-image.js": { "maxDuration": 30 },
-    "api/admin-stats.js": { "maxDuration": 15 },
-    "api/admin-config.js": { "maxDuration": 15 },
-    "api/admin-premium.js": { "maxDuration": 15 },
-    "api/admin-user-action.js": { "maxDuration": 15 },
-    "api/admin-change-pass.js": { "maxDuration": 15 },
-    "api/register-user.js": { "maxDuration": 15 },
-    "api/check-premium.js": { "maxDuration": 15 },
-    "api/premium-request.js": { "maxDuration": 15 },
-    "api/web-search.js": { "maxDuration": 20 }
+    "api/index.js": { "maxDuration": 30 }
   },
-  "routes": [
-    { "src": "/api/chat", "dest": "/api/chat.js" },
-    { "src": "/api/generate-image", "dest": "/api/generate-image.js" },
-    { "src": "/api/admin-stats", "dest": "/api/admin-stats.js" },
-    { "src": "/api/admin-config", "dest": "/api/admin-config.js" },
-    { "src": "/api/admin-premium", "dest": "/api/admin-premium.js" },
-    { "src": "/api/admin-user-action", "dest": "/api/admin-user-action.js" },
-    { "src": "/api/admin-change-pass", "dest": "/api/admin-change-pass.js" },
-    { "src": "/api/register-user", "dest": "/api/register-user.js" },
-    { "src": "/api/check-premium", "dest": "/api/check-premium.js" },
-    { "src": "/api/premium-request", "dest": "/api/premium-request.js" },
-    { "src": "/api/web-search", "dest": "/api/web-search.js" },
-    { "src": "/api/(.*)", "dest": "/api/index.js" },
-    { "src": "/((?!api).*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/((?!api).*)", "destination": "/index.html" }
   ]
 }
