@@ -31,6 +31,24 @@
       }
       @keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
     </style>
+    <style>
+      vercel-live-feedback,#__vercel_toolbar_injection__,
+      .__vercel-toolbar,vercel-toolbar,
+      [data-vercel-toolbar]{display:none!important;visibility:hidden!important}
+    </style>
+    <script>
+      (function(){
+        function rm(){
+          ['vercel-live-feedback','__vercel_toolbar_injection__'].forEach(function(sel){
+            var el=document.getElementById(sel)||document.querySelector(sel);
+            if(el)el.remove();
+          });
+          document.querySelectorAll('[data-vercel-toolbar],.__vercel-toolbar,vercel-toolbar').forEach(function(el){el.remove();});
+        }
+        rm();
+        new MutationObserver(rm).observe(document.documentElement,{childList:true,subtree:true});
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
