@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { useAuth } from "@/App";
 
 export default function LoginPage() {
@@ -8,16 +7,14 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const [, navigate] = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 600));
     const ok = login(email, password);
-    if (ok) { navigate("/dashboard"); }
-    else { setError("Email atau password salah!"); }
+    if (!ok) { setError("Email atau password salah!"); }
     setLoading(false);
   };
 

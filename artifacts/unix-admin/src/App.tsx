@@ -88,7 +88,7 @@ function Router() {
   const { admin } = useAuth();
   return (
     <Switch>
-      <Route path="/login" component={LoginPage} />
+      <Route path="/login" component={() => admin ? <Redirect to="/dashboard" /> : <LoginPage />} />
       <Route path="/" component={() => <Redirect to={admin ? "/dashboard" : "/login"} />} />
       <Route path="/dashboard" component={() => <ProtectedRoute component={DashboardPage} />} />
       <Route path="/users" component={() => <ProtectedRoute component={UsersPage} />} />
