@@ -8,121 +8,10 @@ import React, { useState, useEffect, useRef } from "react";
     getListOpenaiMessagesQueryKey,
   } from "@workspace/api-client-react";
 
-  const FREE_LIMIT = 20;
-  const COUNT_KEY = "nx-free-count";
-  const PREMIUM_KEY = "nx-is-premium";
-
-  function getMsgCount(): number {
-    return parseInt(localStorage.getItem(COUNT_KEY) ?? "0", 10);
-  }
-  function incMsgCount() {
-    localStorage.setItem(COUNT_KEY, String(getMsgCount() + 1));
-  }
-  function isPremium(): boolean {
-    return localStorage.getItem(PREMIUM_KEY) === "true";
-  }
-
-  /* ── Upgrade Modal ─────────────────────────────────── */
-  function UpgradeModal({ count, onClose }: { count: number; onClose: () => void }) {
-    const PLANS = [
-      { name: "Harian", price: "Rp 3.000", duration: "1 hari", popular: false },
-      { name: "Mingguan", price: "Rp 15.000", duration: "7 hari", popular: false },
-      { name: "Bulanan", price: "Rp 49.000", duration: "30 hari", popular: true },
-      { name: "Tahunan", price: "Rp 399.000", duration: "365 hari", popular: false },
-    ];
-
-    const waLink = `https://wa.me/6281234567890?text=${encodeURIComponent("Halo, saya ingin upgrade ke Nixx AI Premium!")}`;
-
-    return (
-      <div style={{
-        position: "fixed", inset: 0, zIndex: 9999,
-        background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)",
-        display: "flex", alignItems: "flex-end", justifyContent: "center",
-        padding: "0 0 0 0",
-      }} onClick={onClose}>
-        <div onClick={e => e.stopPropagation()} style={{
-          background: "var(--nx-bg, #0f0f13)",
-          borderRadius: "20px 20px 0 0",
-          padding: "24px 20px 32px",
-          width: "100%", maxWidth: 520,
-          border: "1px solid rgba(124,58,237,.3)",
-          animation: "nxSlideUp .3s ease",
-          maxHeight: "90dvh",
-          overflowY: "auto",
-        }}>
-          {/* Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-            <div>
-              <div style={{ fontSize: 28, marginBottom: 6 }}>🚀</div>
-              <div style={{ fontWeight: 800, fontSize: "1.2rem", color: "var(--nx-text, #fff)" }}>
-                Upgrade ke Premium
-              </div>
-              <div style={{ color: "var(--nx-text-muted, #aaa)", fontSize: 13, marginTop: 4 }}>
-                Kamu sudah kirim <strong style={{ color: "#f472b6" }}>{count} pesan</strong> — batas gratis tercapai!
-              </div>
-            </div>
-            <button onClick={onClose} style={{
-              background: "rgba(255,255,255,.1)", border: "none", borderRadius: 8,
-              color: "#aaa", cursor: "pointer", fontSize: 18, padding: "4px 9px",
-            }}>×</button>
-          </div>
-
-          {/* Progress bar */}
-          <div style={{ background: "rgba(255,255,255,.1)", borderRadius: 6, height: 6, marginBottom: 20, overflow: "hidden" }}>
-            <div style={{ background: "linear-gradient(90deg,#7c3aed,#ec4899)", height: 6, width: "100%", borderRadius: 6 }} />
-          </div>
-
-          {/* Features */}
-          <div style={{ background: "rgba(124,58,237,.1)", borderRadius: 12, padding: "12px 14px", marginBottom: 20, border: "1px solid rgba(124,58,237,.2)" }}>
-            <div style={{ fontWeight: 600, color: "var(--nx-text, #fff)", fontSize: 13, marginBottom: 8 }}>✨ Yang kamu dapat dengan Premium:</div>
-            {["Pesan unlimited tanpa batas", "Akses semua 26 model AI", "Prioritas respons lebih cepat", "Simpan & ekspor riwayat chat", "Karakter AI eksklusif"].map(f => (
-              <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--nx-text-muted, #ccc)", marginBottom: 5 }}>
-                <span style={{ color: "#a78bfa", flexShrink: 0 }}>✓</span>{f}
-              </div>
-            ))}
-          </div>
-
-          {/* Pricing plans */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-            {PLANS.map(p => (
-              <div key={p.name} style={{
-                borderRadius: 12, padding: "10px 12px", textAlign: "center",
-                border: p.popular ? "2px solid #7c3aed" : "1px solid rgba(255,255,255,.12)",
-                background: p.popular ? "rgba(124,58,237,.18)" : "rgba(255,255,255,.05)",
-                position: "relative",
-              }}>
-                {p.popular && (
-                  <div style={{ position: "absolute", top: -9, left: "50%", transform: "translateX(-50%)", background: "#7c3aed", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>⭐ Terpopuler</div>
-                )}
-                <div style={{ fontWeight: 700, fontSize: 13, color: "var(--nx-text, #fff)", marginBottom: 2 }}>{p.name}</div>
-                <div style={{ fontWeight: 800, color: "#a78bfa", fontSize: 15 }}>{p.price}</div>
-                <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>{p.duration}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* CTA */}
-          <a href={waLink} target="_blank" rel="noopener noreferrer" style={{
-            display: "block", textAlign: "center",
-            background: "linear-gradient(135deg,#7c3aed,#a855f7,#ec4899)",
-            color: "#fff", fontWeight: 700, fontSize: 15,
-            padding: "14px", borderRadius: 14, textDecoration: "none",
-            boxShadow: "0 4px 20px rgba(124,58,237,.45)",
-            marginBottom: 10,
-          }}>
-            💳 Bayar via DANA / GoPay / OVO
-          </a>
-          <div style={{ textAlign: "center", fontSize: 11, color: "#666" }}>
-            Hubungi admin setelah bayar · Aktivasi otomatis dalam 5 menit
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   interface ChatThreadProps {
     conversationId: number;
     selectedModel: string;
+    onLimitReached?: () => void;
   }
 
   function getCurrentTime() {
@@ -161,7 +50,7 @@ import React, { useState, useEffect, useRef } from "react";
     return clean.trim();
   }
 
-  export default function ChatThread({ conversationId, selectedModel }: ChatThreadProps) {
+  export default function ChatThread({ conversationId, selectedModel, onLimitReached }: ChatThreadProps) {
     const queryClient = useQueryClient();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -173,10 +62,6 @@ import React, { useState, useEffect, useRef } from "react";
     const [isStreaming, setIsStreaming] = useState(false);
     const [streamingContent, setStreamingContent] = useState("");
     const [hasText, setHasText] = useState(false);
-    const [msgCount, setMsgCount] = useState(() => getMsgCount());
-    const [showUpgrade, setShowUpgrade] = useState(false);
-
-    const isLimitReached = !isPremium() && msgCount >= FREE_LIMIT;
 
     const { data: conversationData, isLoading: isLoadingConv } =
       useGetOpenaiConversation(conversationId, {
@@ -196,12 +81,6 @@ import React, { useState, useEffect, useRef } from "react";
 
     const handleSend = async () => {
       if (!input.trim() || isStreaming) return;
-
-      // Cek limit pesan gratis
-      if (!isPremium() && getMsgCount() >= FREE_LIMIT) {
-        setShowUpgrade(true);
-        return;
-      }
 
       const userMessage = input.trim();
       setInput("");
@@ -227,8 +106,20 @@ import React, { useState, useEffect, useRef } from "react";
         const res = await fetch(`/api/openai/conversations/${conversationId}/messages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ content: userMessage, model: selectedModel }),
         });
+
+        if (res.status === 429) {
+          onLimitReached?.();
+          setIsStreaming(false);
+          setStreamingContent("");
+          setHasText(false);
+          // Hapus pesan optimistik user
+          queryClient.invalidateQueries({ queryKey: getGetOpenaiConversationQueryKey(conversationId) });
+          queryClient.invalidateQueries({ queryKey: getListOpenaiMessagesQueryKey(conversationId) });
+          return;
+        }
 
         if (!res.ok) throw new Error("Gagal mengirim pesan");
 
@@ -344,15 +235,6 @@ import React, { useState, useEffect, useRef } from "react";
         );
       }
 
-      // Increment counter setelah pesan berhasil dikirim
-      incMsgCount();
-      const newCount = getMsgCount();
-      setMsgCount(newCount);
-      // Kalau tepat mencapai limit, langsung tampilkan modal
-      if (!isPremium() && newCount >= FREE_LIMIT) {
-        setTimeout(() => setShowUpgrade(true), 800);
-      }
-
       setIsStreaming(false);
       setStreamingContent("");
       setHasText(false);
@@ -373,14 +255,8 @@ import React, { useState, useEffect, useRef } from "react";
       );
     }
 
-    const remaining = Math.max(0, FREE_LIMIT - msgCount);
-
     return (
       <>
-        {showUpgrade && (
-          <UpgradeModal count={msgCount} onClose={() => setShowUpgrade(false)} />
-        )}
-
         <div className="nx-chat-messages">
           {messages.length === 0 && !isStreaming && (
             <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 14, marginTop: 40 }}>
@@ -416,84 +292,25 @@ import React, { useState, useEffect, useRef } from "react";
           <div ref={messagesEndRef} />
         </div>
 
-        {/* ── Input area ── */}
-        {isLimitReached ? (
-          /* Blocked state: limit tercapai */
-          <div className="nx-input-container" style={{ flexDirection: "column", gap: 10, padding: "14px 16px" }}>
-            <div style={{
-              background: "rgba(124,58,237,.12)",
-              border: "1px solid rgba(124,58,237,.3)",
-              borderRadius: 12,
-              padding: "12px 16px",
-              textAlign: "center",
-            }}>
-              <div style={{ fontSize: 22, marginBottom: 4 }}>🔒</div>
-              <div style={{ fontWeight: 700, color: "var(--nx-text, #fff)", fontSize: 14, marginBottom: 4 }}>
-                Batas pesan gratis tercapai ({FREE_LIMIT}/{FREE_LIMIT})
-              </div>
-              <div style={{ color: "var(--nx-text-muted, #aaa)", fontSize: 12, marginBottom: 12 }}>
-                Upgrade ke Premium untuk pesan unlimited!
-              </div>
-              <button
-                onClick={() => setShowUpgrade(true)}
-                style={{
-                  background: "linear-gradient(135deg,#7c3aed,#a855f7,#ec4899)",
-                  color: "#fff", border: "none", borderRadius: 10,
-                  padding: "10px 24px", fontWeight: 700, fontSize: 14,
-                  cursor: "pointer", fontFamily: "inherit",
-                  boxShadow: "0 4px 16px rgba(124,58,237,.4)",
-                }}
-              >
-                🚀 Upgrade Premium
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="nx-input-container" style={{ flexDirection: "column", gap: 0 }}>
-            {/* Counter bar - tampil kalau sisa ≤ 10 dan bukan premium */}
-            {!isPremium() && remaining <= 10 && (
-              <div style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "5px 14px 2px",
-                fontSize: 11,
-              }}>
-                <span style={{ color: remaining <= 3 ? "#f87171" : "#a78bfa" }}>
-                  {remaining <= 3 ? "⚠️" : "💬"} Sisa {remaining} pesan gratis
-                </span>
-                <button
-                  onClick={() => setShowUpgrade(true)}
-                  style={{
-                    background: "none", border: "none", color: "#a78bfa",
-                    cursor: "pointer", fontSize: 11, fontWeight: 600, fontFamily: "inherit",
-                    padding: 0,
-                  }}
-                >
-                  Upgrade →
-                </button>
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 8, padding: "8px 12px 12px" }}>
-              <textarea
-                ref={inputRef}
-                className="nx-input"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ketik pesan Anda di sini..."
-                rows={1}
-                disabled={isStreaming}
-                style={{ flex: 1 }}
-              />
-              <button
-                className="nx-send-btn"
-                onClick={handleSend}
-                disabled={!input.trim() || isStreaming}
-              >
-                ✈ SEND
-              </button>
-            </div>
-          </div>
-        )}
+        <div className="nx-input-container">
+          <textarea
+            ref={inputRef}
+            className="nx-input"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ketik pesan Anda di sini..."
+            rows={1}
+            disabled={isStreaming}
+          />
+          <button
+            className="nx-send-btn"
+            onClick={handleSend}
+            disabled={!input.trim() || isStreaming}
+          >
+            ✈ SEND
+          </button>
+        </div>
       </>
     );
   }

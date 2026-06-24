@@ -1,108 +1,79 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
-import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import React from "react";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import NotFound from "@/pages/not-found";
-import ChatPage from "@/pages/chat";
-import SignInPage from "@/pages/sign-in";
-import SignUpPage from "@/pages/sign-up";
-import ForgotPasswordPage from "@/pages/forgot-password";
-import AdminPage from "@/pages/admin";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import LandingPage from "@/pages/LandingPage";
+import DashboardPage from "@/pages/DashboardPage";
+import AuthPage from "@/pages/AuthPage";
+import NotFound from "@/pages/not-found";
+import TermsPage from "@/pages/TermsPage";
+import AdminPage from "@/pages/admin";
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: false, refetchOnWindowFocus: false },
-  },
+  defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
 });
 
-interface ThemeCtx {
-  isDark: boolean;
-  toggle: () => void;
-}
+const basePath = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 
-export const ThemeContext = createContext<ThemeCtx>({ isDark: false, toggle: () => {} });
-
-export function useTheme() {
-  return useContext(ThemeContext);
-}
-
-function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [isDark, setIsDark] = useState(() => localStorage.getItem("nx-theme") === "dark");
-
-  useEffect(() => {
-    const html = document.documentElement;
-    if (isDark) html.setAttribute("data-theme", "dark");
-    else html.removeAttribute("data-theme");
-    localStorage.setItem("nx-theme", isDark ? "dark" : "light");
-  }, [isDark]);
-
+function Spinner() {
   return (
-    <ThemeContext.Provider value={{ isDark, toggle: () => setIsDark(v => !v) }}>
-      {children}
-    </ThemeContext.Provider>
-  );
-}
-
-/* Guard: redirect ke /sign-in kalau belum login */
-function PrivateRoute({ component: Component }: { component: React.ComponentType }) {
-  const { user, isLoading } = useAuth();
-  const [, navigate] = useLocation();
-
-  useEffect(() => {
-    if (!isLoading && !user) navigate("/sign-in");
-  }, [user, isLoading, navigate]);
-
-  if (isLoading) return (
-    <div style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0a0f" }}>
-      <div style={{ fontSize: 36, animation: "nx-spin 1s linear infinite" }}>⏳</div>
-      <style>{"@keyframes nx-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}"}</style>
+    <div style={{
+      minHeight: "100dvh", display: "flex", alignItems: "center",
+      justifyContent: "center", background: "#0d0d0f",
+      flexDirection: "column", gap: "1rem",
+    }}>
+      <div style={{
+        width: 48, height: 48, borderRadius: "50%",
+        border: "3px solid rgba(168,85,247,0.2)",
+        borderTopColor: "#a855f7",
+        animation: "spin .7s linear infinite",
+      }} />
+      <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
+      <p style={{ color: "rgba(168,85,247,0.7)", fontSize: 14, margin: 0 }}>Memuat...</p>
     </div>
   );
-  if (!user) return null;
-  return <Component />;
 }
 
-/* Guard: redirect ke / kalau sudah login */
-function PublicOnlyRoute({ component: Component }: { component: React.ComponentType }) {
+function AppRoutes() {
   const { user, isLoading } = useAuth();
-  const [, navigate] = useLocation();
+  if (isLoading) return <Spinner />;
 
-  useEffect(() => {
-    if (!isLoading && user) navigate("/");
-  }, [user, isLoading, navigate]);
-
-  if (isLoading) return null;
-  if (user) return null;
-  return <Component />;
-}
-
-function Router() {
   return (
     <Switch>
-      <Route path="/">{() => <PrivateRoute component={ChatPage} />}</Route>
-      <Route path="/admin">{() => <PrivateRoute component={AdminPage} />}</Route>
-      <Route path="/sign-in">{() => <PublicOnlyRoute component={SignInPage} />}</Route>
-      <Route path="/sign-up">{() => <PublicOnlyRoute component={SignUpPage} />}</Route>
-      <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/sign-in">
+        {user ? <Redirect to="/dashboard" /> : <AuthPage defaultMode="login" />}
+      </Route>
+      <Route path="/sign-up">
+        {user ? <Redirect to="/dashboard" /> : <AuthPage defaultMode="register" />}
+      </Route>
+      <Route path="/dashboard">
+        {user ? <DashboardPage /> : <Redirect to="/sign-in" />}
+      </Route>
+      <Route path="/admin">
+        <AdminPage />
+      </Route>
+      <Route path="/syarat">
+        <TermsPage />
+      </Route>
+      <Route path="/terms">
+        <TermsPage />
+      </Route>
+      <Route path="/">
+        {user ? <Redirect to="/dashboard" /> : <LandingPage />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-function App() {
+export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </ThemeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <WouterRouter base={basePath}>
+          <AppRoutes />
+        </WouterRouter>
+      </QueryClientProvider>
+    </AuthProvider>
   );
 }
-
-export default App;

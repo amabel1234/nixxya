@@ -11,7 +11,7 @@ export default defineConfig({
   base: basePath,
   plugins: [
     react(),
-    tailwindcss(),
+    tailwindcss({ optimize: false }),
     ...(!isVercel && process.env.NODE_ENV !== "production"
       ? [
           (await import("@replit/vite-plugin-runtime-error-modal")).default(),
@@ -34,7 +34,6 @@ export default defineConfig({
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
       "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
-      "@workspace/api-client-react": path.resolve(import.meta.dirname, "../../lib/api-client-react/src/index.ts"),
     },
     dedupe: ["react", "react-dom"],
   },
