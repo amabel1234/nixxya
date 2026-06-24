@@ -1,9 +1,18 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+
+const ADMIN_EMAILS = ["nixxteam@gmail.com", "admin@nixxai.dev", "amabel1234@gmail.com", "kelaoffc@gmail.com"];
+const USERS_KEY = "nx-users-db";
+const SESSION_KEY = "nx-session";
 
 export interface AuthUser {
   id: number;
   email: string;
   username: string;
+  isPremium: boolean;
+  isSuspended: boolean;
+  isAdmin: boolean;
+  createdAt: string;
+  chatCount: number;
 }
 
 interface StoredUser {
@@ -11,99 +20,119 @@ interface StoredUser {
   email: string;
   username: string;
   password: string;
+  isPremium: boolean;
+  isSuspended: boolean;
+  createdAt: string;
+  chatCount: number;
 }
 
-interface AuthContextType {
+interface AuthCtx {
   user: AuthUser | null;
-  token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => string | null;
+  register: (email: string, username: string, password: string) => string | null;
   logout: () => void;
+  resetPassword: (email: string, newPassword: string) => string | null;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
-
-const USERS_KEY = "nx-users-db";
-const SESSION_KEY = "nx-session-user";
-
-let _idCounter = 0;
-
-function getStoredUsers(): StoredUser[] {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) ?? "[]");
-  } catch { return []; }
+function hashPw(pw: string): string {
+  return btoa(unescape(encodeURIComponent(pw + "nx_salt_2025")));
 }
 
+function loadUsers(): StoredUser[] {
+  try { return JSON.parse(localStorage.getItem(USERS_KEY) ?? "[]"); } catch { return []; }
+}
 function saveUsers(users: StoredUser[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+const AuthContext = createContext<AuthCtx>({
+  user: null, isLoading: true,
+  login: () => null, register: () => null,
+  logout: () => {}, resetPassword: () => null,
+});
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(SESSION_KEY);
-      if (stored) {
-        const u = JSON.parse(stored) as AuthUser;
-        setUser(u);
-        setToken("local-token");
+    const session = localStorage.getItem(SESSION_KEY);
+    if (session) {
+      const users = loadUsers();
+      const found = users.find(u => u.email === session);
+      if (found) {
+        setUser(toAuthUser(found));
+      } else {
+        localStorage.removeItem(SESSION_KEY);
       }
-    } catch { /* ignore */ }
+    }
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const users = getStoredUsers();
-    const found = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-    if (!found) {
-      throw new Error("Email atau password salah. Belum punya akun? Silakan daftar dulu.");
-    }
-    const authUser: AuthUser = { id: found.id, email: found.email, username: found.username };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(authUser));
-    setToken("local-token");
-    setUser(authUser);
-  };
-
-  const register = async (email: string, username: string, password: string) => {
-    const users = getStoredUsers();
-    if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
-      throw new Error("Email sudah terdaftar. Silakan masuk atau gunakan email lain.");
-    }
-    _idCounter = _idCounter || Date.now();
-    const newUser: StoredUser = {
-      id: ++_idCounter,
-      email: email.trim().toLowerCase(),
-      username: username.trim(),
-      password,
+  function toAuthUser(u: StoredUser): AuthUser {
+    return {
+      id: u.id, email: u.email, username: u.username,
+      isPremium: u.isPremium ?? false, isSuspended: u.isSuspended ?? false,
+      isAdmin: ADMIN_EMAILS.includes(u.email),
+      createdAt: u.createdAt, chatCount: u.chatCount ?? 0,
     };
-    users.push(newUser);
-    saveUsers(users);
-    const authUser: AuthUser = { id: newUser.id, email: newUser.email, username: newUser.username };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(authUser));
-    setToken("local-token");
-    setUser(authUser);
-  };
+  }
 
-  const logout = () => {
+  const login = useCallback((email: string, password: string): string | null => {
+    const trimEmail = email.trim().toLowerCase();
+    const users = loadUsers();
+    const found = users.find(u => u.email.toLowerCase() === trimEmail);
+    if (!found) return "Email tidak terdaftar.";
+    if (found.password !== hashPw(password)) return "Password salah.";
+    if (found.isSuspended) return "Akun kamu disuspend. Hubungi admin.";
+    localStorage.setItem(SESSION_KEY, found.email);
+    setUser(toAuthUser(found));
+    return null;
+  }, []);
+
+  const register = useCallback((email: string, username: string, password: string): string | null => {
+    const trimEmail = email.trim().toLowerCase();
+    if (!trimEmail || !username.trim() || !password) return "Semua kolom wajib diisi.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimEmail)) return "Format email tidak valid.";
+    if (username.trim().length < 3) return "Username minimal 3 karakter.";
+    if (password.length < 6) return "Password minimal 6 karakter.";
+    const users = loadUsers();
+    if (users.find(u => u.email.toLowerCase() === trimEmail)) return "Email sudah terdaftar.";
+    const newUser: StoredUser = {
+      id: Date.now(), email: trimEmail, username: username.trim(),
+      password: hashPw(password), isPremium: false, isSuspended: false,
+      createdAt: new Date().toISOString().slice(0, 10), chatCount: 0,
+    };
+    saveUsers([...users, newUser]);
+    localStorage.setItem(SESSION_KEY, newUser.email);
+    setUser(toAuthUser(newUser));
+    return null;
+  }, []);
+
+  const logout = useCallback(() => {
     localStorage.removeItem(SESSION_KEY);
-    setToken(null);
     setUser(null);
-    window.location.href = "/";
-  };
+  }, []);
+
+  const resetPassword = useCallback((email: string, newPassword: string): string | null => {
+    const trimEmail = email.trim().toLowerCase();
+    if (newPassword.length < 6) return "Password minimal 6 karakter.";
+    const users = loadUsers();
+    const idx = users.findIndex(u => u.email.toLowerCase() === trimEmail);
+    if (idx === -1) return "Email tidak terdaftar.";
+    users[idx] = { ...users[idx], password: hashPw(newPassword) };
+    saveUsers(users);
+    return null;
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  return useContext(AuthContext);
 }
