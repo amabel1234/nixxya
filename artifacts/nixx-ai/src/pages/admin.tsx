@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 const ADMIN_EMAILS = ["nixxteam@gmail.com", "admin@nixxai.dev", "amabel1234@gmail.com", "kelaoffc@gmail.com"];
@@ -27,11 +27,15 @@ function loadUsers(): UserRow[] {
   try {
     const raw = JSON.parse(localStorage.getItem("nx-users-db") ?? "[]") as any[];
     return raw.map((u, i) => ({
-      id: u.id ?? i + 1, uid: `U${String(u.id ?? i + 1).padStart(3, "0")}`,
-      username: u.username ?? "—", email: u.email ?? "—",
-      isPremium: u.isPremium ?? false, isSuspended: u.isSuspended ?? false,
-      chatCount: u.chatCount ?? Math.floor(Math.random() * 1000),
-      createdAt: u.createdAt ?? "2024-01-01", lastSeen: u.lastSeen ?? "1 jam lalu",
+      id: u.id ?? i + 1,
+      uid: `U${String(u.id ?? i + 1).padStart(3, "0")}`,
+      username: u.username ?? "—",
+      email: u.email ?? "—",
+      isPremium: u.isPremium ?? false,
+      isSuspended: u.isSuspended ?? false,
+      chatCount: u.chatCount ?? 0,
+      createdAt: u.createdAt ? u.createdAt.slice(0, 10) : "—",
+      lastSeen: u.lastSeen ?? "Baru saja",
     }));
   } catch { return []; }
 }
@@ -41,48 +45,50 @@ function loadPricing(): PricingTier[] {
 }
 function savePricing(p: PricingTier[]) { localStorage.setItem("nx-pricing", JSON.stringify(p)); }
 
-/* ── NAV CONFIG ──────────────────────────────────────── */
-const NAV_TOP: { id: Page; label: string; icon: string }[] = [
+const ALL_NAV: { id: Page; label: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "⊞" },
   { id: "users", label: "Users", icon: "👥" },
   { id: "premium", label: "Premium", icon: "👑" },
   { id: "payment", label: "Payment", icon: "💳" },
-];
-const NAV_BOT: { id: Page; label: string; icon: string }[] = [
-  { id: "harga", label: "Harga Paket", icon: "🏷️" },
+  { id: "harga", label: "Harga", icon: "🏷️" },
   { id: "statistik", label: "Statistik", icon: "📊" },
   { id: "broadcast", label: "Broadcast", icon: "📢" },
-  { id: "pengaturan", label: "Pengaturan", icon: "⚙️" },
+  { id: "pengaturan", label: "Setelan", icon: "⚙️" },
 ];
 
-/* ── SVG Charts ──────────────────────────────────────── */
-function BarChart({ data, color = "#7F77DD" }: { data: number[]; color?: string }) {
+function BarChart({ data, color = "#7C3AED" }: { data: number[]; color?: string }) {
   const max = Math.max(...data, 1);
-  const W = 320, H = 72, n = data.length, bw = W / n - 2;
+  const W = 320, H = 60, n = data.length, bw = W / n - 2;
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
       {data.map((v, i) => {
         const h = (v / max) * (H - 4);
-        return <rect key={i} x={i * (bw + 2)} y={H - h} width={bw} height={h} rx={2} fill={color} opacity={i === new Date().getHours() ? 1 : 0.45} />;
+        return <rect key={i} x={i * (bw + 2)} y={H - h} width={bw} height={h} rx={2} fill={color} opacity={i === new Date().getHours() ? 1 : 0.4} />;
       })}
     </svg>
   );
 }
-function LineChart({ data, color = "#7F77DD" }: { data: number[]; color?: string }) {
+function LineChart({ data, color = "#7C3AED" }: { data: number[]; color?: string }) {
   const max = Math.max(...data, 1);
-  const W = 400, H = 100, n = data.length;
+  const W = 400, H = 80, n = data.length;
   const pts = data.map((v, i) => `${(i / (n - 1)) * W},${H - (v / max) * (H - 8)}`).join(" ");
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+      <defs>
+        <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={`0,${H} ${pts} ${W},${H}`} fill="url(#lg)" />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" />
     </svg>
   );
 }
 
-/* ── MAIN COMPONENT ──────────────────────────────────── */
 export default function AdminPage() {
   const { user, logout } = useAuth();
-  const [page, setPage] = useState<Page>("users");
+  const [page, setPage] = useState<Page>("dashboard");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [pricing, setPricing] = useState<PricingTier[]>(DEFAULT_PRICING);
   const [filter, setFilter] = useState<StatusFilter>("semua");
@@ -92,88 +98,90 @@ export default function AdminPage() {
   const [newFeature, setNewFeature] = useState<{ [id: string]: string }>({});
   const [broadcast, setBroadcast] = useState("");
   const [broadcastSent, setBroadcastSent] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [payConfig, setPayConfig] = useState<{ qr: string; danaNumber: string; danaName: string; note: string }>(() => {
-    try { return JSON.parse(localStorage.getItem("nx-pay-config") ?? "null") ?? { qr: "", danaNumber: "", danaName: "", note: "" }; } catch { return { qr: "", danaNumber: "", danaName: "", note: "" }; }
-  });
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [payConfig, setPayConfig] = useState({ qr: "", danaNumber: "", danaName: "", note: "" });
   const [payDraft, setPayDraft] = useState({ danaNumber: "", danaName: "", note: "" });
 
   useEffect(() => {
-    setUsers(loadUsers()); setPricing(loadPricing());
-    const saved = (() => { try { return JSON.parse(localStorage.getItem("nx-pay-config") ?? "null"); } catch { return null; } })();
-    if (saved) { setPayConfig(saved); setPayDraft({ danaNumber: saved.danaNumber, danaName: saved.danaName, note: saved.note }); }
+    setUsers(loadUsers());
+    setPricing(loadPricing());
+    try {
+      const saved = JSON.parse(localStorage.getItem("nx-pay-config") ?? "null");
+      if (saved) { setPayConfig(saved); setPayDraft({ danaNumber: saved.danaNumber, danaName: saved.danaName, note: saved.note }); }
+    } catch { }
   }, []);
 
   const showToast = useCallback((msg: string, ok = true) => {
-    setToast({ msg, ok }); setTimeout(() => setToast(null), 2500);
+    setToast({ msg, ok }); setTimeout(() => setToast(null), 2800);
   }, []);
 
   const isAdmin = user && ADMIN_EMAILS.includes(user.email);
 
   if (!user) return (
     <div style={S.center}>
-      <p style={{ marginBottom: 16 }}>Kamu harus login dulu.</p>
-      <a href="/sign-in" style={{ color: "#7F77DD" }}>← Login</a>
+      <div style={{ fontSize: 48, marginBottom: 12 }}>🔐</div>
+      <p style={{ fontWeight: 600, marginBottom: 8 }}>Login dulu ya!</p>
+      <a href="/sign-in" style={S.linkBtn}>← Masuk</a>
     </div>
   );
   if (!isAdmin) return (
     <div style={S.center}>
-      <p style={{ fontSize: 40 }}>🚫</p>
-      <p>Akses ditolak. Kamu bukan admin.</p>
-      <a href="/dashboard" style={{ color: "#7F77DD" }}>← Kembali ke Dashboard</a>
+      <div style={{ fontSize: 48, marginBottom: 12 }}>🚫</div>
+      <p style={{ fontWeight: 600, marginBottom: 8 }}>Akses Ditolak</p>
+      <p style={{ color: "#888", fontSize: 13, marginBottom: 16 }}>Kamu bukan admin.</p>
+      <a href="/dashboard" style={S.linkBtn}>← Ke Dashboard</a>
     </div>
   );
 
-  /* ── Data helpers ── */
   const premiumUsers = users.filter(u => u.isPremium && !u.isSuspended);
   const suspendedUsers = users.filter(u => u.isSuspended);
   const chatHistory: any[] = (() => { try { return JSON.parse(localStorage.getItem("nx-chat-history") ?? "[]"); } catch { return []; } })();
-  const totalMsgs = chatHistory.reduce((s, c) => s + (c.messages?.length ?? 0), 0);
+  const totalMsgs = chatHistory.reduce((s: number, c: any) => s + (c.messages?.length ?? 0), 0);
 
   const filtered = users.filter(u => {
-    const matchFilter = filter === "semua" ? true : filter === "premium" ? (u.isPremium && !u.isSuspended) : filter === "gratis" ? (!u.isPremium && !u.isSuspended) : u.isSuspended;
+    const ok = filter === "semua" ? true : filter === "premium" ? (u.isPremium && !u.isSuspended) : filter === "gratis" ? (!u.isPremium && !u.isSuspended) : u.isSuspended;
     const q = search.toLowerCase();
-    return matchFilter && (!q || u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.uid.toLowerCase().includes(q));
+    return ok && (!q || u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
   });
 
   const togglePremium = (id: number) => {
-    const updated = users.map(u => u.id === id ? { ...u, isPremium: !u.isPremium } : u);
-    setUsers(updated); saveUsers(updated);
-    const t = updated.find(u => u.id === id);
-    showToast(t?.isPremium ? `${t.username} jadi PREMIUM` : `${t?.username} → Free`);
+    const upd = users.map(u => u.id === id ? { ...u, isPremium: !u.isPremium } : u);
+    setUsers(upd); saveUsers(upd);
+    const t = upd.find(u => u.id === id);
+    showToast(t?.isPremium ? `👑 ${t.username} → Premium` : `${t?.username} → Gratis`);
   };
   const toggleSuspend = (id: number) => {
-    const updated = users.map(u => u.id === id ? { ...u, isSuspended: !u.isSuspended } : u);
-    setUsers(updated); saveUsers(updated);
-    const t = updated.find(u => u.id === id);
-    showToast(t?.isSuspended ? `${t.username} disuspend` : `${t?.username} diaktifkan`);
+    const upd = users.map(u => u.id === id ? { ...u, isSuspended: !u.isSuspended } : u);
+    setUsers(upd); saveUsers(upd);
+    const t = upd.find(u => u.id === id);
+    showToast(t?.isSuspended ? `🔒 ${t.username} disuspend` : `✅ ${t?.username} diaktifkan`);
   };
   const deleteUser = (id: number) => {
     const t = users.find(u => u.id === id);
     if (!confirm(`Hapus user "${t?.username}"?`)) return;
-    const updated = users.filter(u => u.id !== id);
-    setUsers(updated); saveUsers(updated); showToast(`${t?.username} dihapus`);
+    const upd = users.filter(u => u.id !== id);
+    setUsers(upd); saveUsers(upd); showToast(`🗑️ ${t?.username} dihapus`);
   };
   const savePrice = (tierId: string) => {
     if (!editPrice) return;
     const val = parseInt(editPrice.value.replace(/\D/g, ""));
     if (isNaN(val)) return;
-    const updated = pricing.map(p => p.id === tierId ? { ...p, price: val } : p);
-    setPricing(updated); savePricing(updated); setEditPrice(null); showToast("Harga diperbarui");
+    const upd = pricing.map(p => p.id === tierId ? { ...p, price: val } : p);
+    setPricing(upd); savePricing(upd); setEditPrice(null); showToast("✅ Harga diperbarui");
   };
   const addFeature = (tierId: string) => {
     const feat = newFeature[tierId]?.trim(); if (!feat) return;
-    const updated = pricing.map(p => p.id === tierId ? { ...p, features: [...p.features, feat] } : p);
-    setPricing(updated); savePricing(updated); setNewFeature(f => ({ ...f, [tierId]: "" }));
+    const upd = pricing.map(p => p.id === tierId ? { ...p, features: [...p.features, feat] } : p);
+    setPricing(upd); savePricing(upd); setNewFeature(f => ({ ...f, [tierId]: "" }));
   };
   const removeFeature = (tierId: string, fi: number) => {
-    const updated = pricing.map(p => p.id === tierId ? { ...p, features: p.features.filter((_, i) => i !== fi) } : p);
-    setPricing(updated); savePricing(updated);
+    const upd = pricing.map(p => p.id === tierId ? { ...p, features: p.features.filter((_, i) => i !== fi) } : p);
+    setPricing(upd); savePricing(upd);
   };
   const sendBroadcast = () => {
     if (!broadcast.trim()) return;
     localStorage.setItem("nx-broadcast", JSON.stringify({ msg: broadcast, at: new Date().toISOString() }));
-    setBroadcast(""); setBroadcastSent(true); showToast("Broadcast dikirim ke semua user!");
+    setBroadcast(""); setBroadcastSent(true); showToast("📢 Broadcast terkirim!");
     setTimeout(() => setBroadcastSent(false), 3000);
   };
   const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,56 +190,58 @@ export default function AdminPage() {
     const reader = new FileReader();
     reader.onload = () => {
       const qr = reader.result as string;
-      const updated = { ...payConfig, qr };
-      setPayConfig(updated); localStorage.setItem("nx-pay-config", JSON.stringify(updated)); showToast("QR Code berhasil diupload!");
+      const upd = { ...payConfig, qr };
+      setPayConfig(upd); localStorage.setItem("nx-pay-config", JSON.stringify(upd)); showToast("✅ QR Code diupload!");
     };
     reader.readAsDataURL(file);
   };
   const savePayInfo = () => {
-    const updated = { ...payConfig, ...payDraft };
-    setPayConfig(updated); localStorage.setItem("nx-pay-config", JSON.stringify(updated)); showToast("Info pembayaran disimpan!");
+    const upd = { ...payConfig, ...payDraft };
+    setPayConfig(upd); localStorage.setItem("nx-pay-config", JSON.stringify(upd)); showToast("✅ Info pembayaran disimpan!");
   };
 
   const hourlyData = Array.from({ length: 24 }, (_, i) => Math.floor(20 + Math.random() * 60 + (i > 8 && i < 22 ? 30 : 0)));
   const dailyUsers = [12, 18, 25, 31, 28, 35, 40, 38, 45, 52, 48, 55, 60, 58, 62, 70, 65, 72, 68, 75, 80, 78, 85, 90, 88, 95, 100];
   const models = [
-    { name: "GPT-4o", count: 12490 }, { name: "Claude 3.5", count: 8920 }, { name: "Gemini Pro", count: 7120 },
-    { name: "DeepSeek", count: 5680 }, { name: "GPT-4o Mini", count: 4320 }, { name: "Llama 3.3", count: 3210 },
+    { name: "GPT-4o", count: 12490 }, { name: "Claude 3.5", count: 8920 },
+    { name: "Gemini Pro", count: 7120 }, { name: "DeepSeek", count: 5680 },
+    { name: "Llama 3.3", count: 3210 },
   ];
 
-  /* ── Status badge ── */
+  const pageMeta: Record<Page, string> = {
+    dashboard: "Dashboard", users: "Manajemen User", premium: "User Premium",
+    payment: "Payment", harga: "Harga Paket", statistik: "Statistik",
+    broadcast: "Broadcast", pengaturan: "Pengaturan",
+  };
+
   const Badge = ({ u }: { u: UserRow }) => {
-    if (u.isSuspended) return <span style={S.badge("red")}>Suspended</span>;
-    if (u.isPremium) return <span style={S.badge("purple")}>👑 Premium</span>;
+    if (u.isSuspended) return <span style={S.badge("red")}>🔒 Suspended</span>;
+    if (u.isPremium) return <span style={S.badge("gold")}>👑 Premium</span>;
     return <span style={S.badge("gray")}>Gratis</span>;
   };
 
-  /* ────────────────── PAGE RENDERS ────────────────── */
+  /* ───── PAGE CONTENT ───── */
   const renderDashboard = () => (
     <div>
-      <div style={S.pageHeader}>
-        <div style={S.pageTitle}>Dashboard</div>
-        <div style={S.pageSub}>Ringkasan platform Nixx AI</div>
-      </div>
       <div style={S.statsGrid}>
         {[
-          { label: "Total User", value: users.length, icon: "👥", color: "#7F77DD", bg: "#EEEDFE" },
-          { label: "Premium", value: premiumUsers.length, icon: "👑", color: "#854F0B", bg: "#FAEEDA" },
-          { label: "Suspended", value: suspendedUsers.length, icon: "🔒", color: "#A32D2D", bg: "#FCEBEB" },
-          { label: "Total Chat", value: chatHistory.length, icon: "💬", color: "#185FA5", bg: "#E6F1FB" },
-          { label: "Total Pesan", value: totalMsgs, icon: "📨", color: "#0F6E56", bg: "#E1F5EE" },
+          { label: "Total User", value: users.length, icon: "👥", accent: "#7C3AED", bg: "#EDE9FE" },
+          { label: "Premium", value: premiumUsers.length, icon: "👑", accent: "#D97706", bg: "#FEF3C7" },
+          { label: "Suspended", value: suspendedUsers.length, icon: "🔒", accent: "#DC2626", bg: "#FEE2E2" },
+          { label: "Sesi Chat", value: chatHistory.length, icon: "💬", accent: "#2563EB", bg: "#DBEAFE" },
+          { label: "Total Pesan", value: totalMsgs, icon: "📨", accent: "#059669", bg: "#D1FAE5" },
         ].map(s => (
           <div key={s.label} style={S.statCard}>
-            <div style={{ width: 32, height: 32, borderRadius: 9, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, marginBottom: 8 }}>{s.icon}</div>
-            <div style={{ fontSize: "1.5rem", fontWeight: 600, color: s.color, lineHeight: 1 }}>{s.value}</div>
-            <div style={S.statLabel}>{s.label}</div>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 8 }}>{s.icon}</div>
+            <div style={{ fontSize: "1.6rem", fontWeight: 700, color: s.accent, lineHeight: 1 }}>{s.value.toLocaleString()}</div>
+            <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>{s.label}</div>
           </div>
         ))}
       </div>
       <div style={S.card}>
-        <div style={S.cardHead}>Aktivitas Chat (24 Jam)</div>
+        <div style={S.cardHead}>📊 Aktivitas Chat (24 Jam)</div>
         <BarChart data={hourlyData} />
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#888", marginTop: 4 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#aaa", marginTop: 4 }}>
           <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
         </div>
       </div>
@@ -240,273 +250,215 @@ export default function AdminPage() {
 
   const renderUsers = () => (
     <div>
-      <div style={S.pageHeader}>
-        <div style={S.pageTitle}>Manajemen User</div>
-        <div style={S.pageSub}>{users.length} total pengguna &nbsp;<span style={{ color: "#1D9E75", fontSize: 12 }}>● Realtime</span></div>
-      </div>
-      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" as const, alignItems: "center" }}>
-        <div style={S.searchBar}>
-          <span style={{ fontSize: 15, color: "#aaa" }}>🔍</span>
-          <input style={S.searchInput} placeholder="Cari nama, email, atau UID..."
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" as const }}>
+        <div style={S.searchWrap}>
+          <span style={{ fontSize: 16 }}>🔍</span>
+          <input style={S.searchInput} placeholder="Cari nama atau email..."
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div style={{ display: "flex", gap: 5 }}>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" as const }}>
           {(["semua", "premium", "gratis", "suspended"] as StatusFilter[]).map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              style={{ ...S.pill, background: filter === f ? "#7F77DD" : "transparent", color: filter === f ? "#fff" : "#888", border: filter === f ? "0.5px solid #7F77DD" : "0.5px solid #ccc" }}>
+            <button key={f} onClick={() => setFilter(f)} style={{
+              padding: "6px 12px", borderRadius: 20, border: "none", cursor: "pointer",
+              fontSize: 12, fontWeight: 500,
+              background: filter === f ? "#7C3AED" : "#F3F4F6",
+              color: filter === f ? "#fff" : "#555",
+            }}>
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
         </div>
       </div>
-      <div style={S.tableWrap}>
-        <div style={{ overflowX: "auto" as const }}>
-          <table style={S.table}>
-            <thead>
-              <tr style={{ borderBottom: "0.5px solid var(--nx-border, #e5e5e5)" }}>
-                {["USER", "UID", "STATUS", "CHAT", "DAFTAR", "ONLINE", "AKSI"].map(h => (
-                  <th key={h} style={S.th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: "2rem", textAlign: "center" as const, color: "#888" }}>Tidak ada user.</td></tr>
-              ) : filtered.map((u, i) => (
-                <tr key={u.id} style={{ borderBottom: i < filtered.length - 1 ? "0.5px solid #f0f0f0" : "none" }}>
-                  <td style={{ padding: "10px 12px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                      <div style={S.userAvatar}>{(u.username[0] || "?").toUpperCase()}</div>
-                      <div>
-                        <div style={{ fontWeight: 500, fontSize: 13 }}>{u.username}</div>
-                        <div style={{ fontSize: 11, color: "#aaa" }}>{u.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={S.td}><span style={{ fontSize: 11, color: "#aaa" }}>{u.uid}</span></td>
-                  <td style={S.td}><Badge u={u} /></td>
-                  <td style={S.td}>{u.chatCount ?? 0}</td>
-                  <td style={{ ...S.td, fontSize: 11, color: "#aaa" }}>{u.createdAt}</td>
-                  <td style={{ ...S.td, fontSize: 11, color: "#888" }}>{u.lastSeen}</td>
-                  <td style={S.td}>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button title={u.isPremium ? "Cabut Premium" : "Set Premium"} onClick={() => togglePremium(u.id)}
-                        style={{ ...S.iconBtn, background: "#FAEEDA", color: "#854F0B" }}>⭐</button>
-                      <button title={u.isSuspended ? "Aktifkan" : "Suspend"} onClick={() => toggleSuspend(u.id)}
-                        style={{ ...S.iconBtn, background: "#FCEBEB", color: "#A32D2D" }}>{u.isSuspended ? "✅" : "🔒"}</button>
-                      <button title="Hapus" onClick={() => deleteUser(u.id)}
-                        style={{ ...S.iconBtn, background: "#FCEBEB", color: "#A32D2D" }}>🗑️</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ padding: "7px 12px", fontSize: 11, color: "#aaa", borderTop: "0.5px solid #f0f0f0" }}>
-          Menampilkan {filtered.length} dari {users.length} user
-        </div>
+
+      {/* User cards - mobile friendly */}
+      <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
+        {filtered.length === 0 ? (
+          <div style={S.empty}>👤 Tidak ada user{filter !== "semua" ? ` dengan status "${filter}"` : ""}.</div>
+        ) : filtered.map(u => (
+          <div key={u.id} style={S.userCard}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+              <div style={{ ...S.avatar, background: u.isPremium ? "#FEF3C7" : u.isSuspended ? "#FEE2E2" : "#EDE9FE", color: u.isPremium ? "#D97706" : u.isSuspended ? "#DC2626" : "#7C3AED", flexShrink: 0 }}>
+                {(u.username[0] || "?").toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{u.username}</div>
+                <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{u.email}</div>
+                <div style={{ marginTop: 4 }}><Badge u={u} /></div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+              <button title={u.isPremium ? "Cabut Premium" : "Set Premium"} onClick={() => togglePremium(u.id)}
+                style={{ ...S.iconBtn, background: "#FEF3C7", color: "#D97706" }}>⭐</button>
+              <button title={u.isSuspended ? "Aktifkan" : "Suspend"} onClick={() => toggleSuspend(u.id)}
+                style={{ ...S.iconBtn, background: u.isSuspended ? "#D1FAE5" : "#FEE2E2", color: u.isSuspended ? "#059669" : "#DC2626" }}>
+                {u.isSuspended ? "✅" : "🔒"}
+              </button>
+              <button title="Hapus" onClick={() => deleteUser(u.id)}
+                style={{ ...S.iconBtn, background: "#FEE2E2", color: "#DC2626" }}>🗑️</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ textAlign: "center" as const, fontSize: 12, color: "#aaa", marginTop: 10 }}>
+        {filtered.length} dari {users.length} user
       </div>
     </div>
   );
 
   const renderPremium = () => (
     <div>
-      <div style={S.pageHeader}>
-        <div style={S.pageTitle}>User Premium</div>
-        <div style={S.pageSub}>{premiumUsers.length} pengguna aktif premium</div>
-      </div>
-      <div style={S.tableWrap}>
-        <table style={S.table}>
-          <thead>
-            <tr style={{ borderBottom: "0.5px solid #f0f0f0" }}>
-              {["USER", "UID", "CHAT", "AKSI"].map(h => <th key={h} style={S.th}>{h}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {premiumUsers.length === 0
-              ? <tr><td colSpan={4} style={{ padding: "2rem", textAlign: "center" as const, color: "#888" }}>Belum ada user premium.</td></tr>
-              : premiumUsers.map((u, i) => (
-                <tr key={u.id} style={{ borderBottom: i < premiumUsers.length - 1 ? "0.5px solid #f0f0f0" : "none" }}>
-                  <td style={{ padding: "10px 12px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                      <div style={{ ...S.userAvatar, background: "#FAEEDA", color: "#854F0B" }}>{(u.username[0] || "?").toUpperCase()}</div>
-                      <div>
-                        <div style={{ fontWeight: 500, fontSize: 13 }}>{u.username}</div>
-                        <div style={{ fontSize: 11, color: "#aaa" }}>{u.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={S.td}><span style={{ fontSize: 11, color: "#aaa" }}>{u.uid}</span></td>
-                  <td style={S.td}>{u.chatCount}</td>
-                  <td style={S.td}>
-                    <button onClick={() => togglePremium(u.id)}
-                      style={{ ...S.iconBtn, background: "#FCEBEB", color: "#A32D2D", padding: "4px 12px", borderRadius: 7, fontSize: 12 }}>
-                      Cabut Premium
-                    </button>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+      {premiumUsers.length === 0 ? (
+        <div style={S.empty}>👑 Belum ada user premium.</div>
+      ) : premiumUsers.map(u => (
+        <div key={u.id} style={{ ...S.userCard, marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+            <div style={{ ...S.avatar, background: "#FEF3C7", color: "#D97706", flexShrink: 0 }}>
+              {(u.username[0] || "?").toUpperCase()}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{u.username}</div>
+              <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{u.email}</div>
+              <div style={{ fontSize: 11, color: "#aaa", marginTop: 2 }}>Chat: {u.chatCount}</div>
+            </div>
+          </div>
+          <button onClick={() => togglePremium(u.id)}
+            style={{ ...S.iconBtn, background: "#FEE2E2", color: "#DC2626", padding: "6px 12px", borderRadius: 8, fontSize: 12, flexShrink: 0 }}>
+            Cabut
+          </button>
+        </div>
+      ))}
     </div>
   );
 
   const renderPayment = () => (
-    <div>
-      <div style={S.pageHeader}>
-        <div style={S.pageTitle}>Payment</div>
-        <div style={S.pageSub}>Kelola metode pembayaran premium</div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <div style={S.card}>
-          <div style={S.cardHead}>QR Code Pembayaran</div>
-          <div style={{ fontSize: 12, color: "#888", marginBottom: 14 }}>Upload QR DANA/GoPay/OVO. User akan melihat ini saat bayar.</div>
-          {payConfig.qr ? (
-            <div style={{ textAlign: "center" as const }}>
-              <img src={payConfig.qr} alt="QR" style={{ width: "100%", maxWidth: 180, borderRadius: 10, marginBottom: 10, border: "1px solid #e5e5e5" }} />
-              <div style={{ display: "flex", gap: 7, justifyContent: "center" }}>
-                <label style={S.uploadBtn}>🔄 Ganti QR<input type="file" accept="image/*" style={{ display: "none" }} onChange={handleQrUpload} /></label>
-                <button onClick={() => { const u = { ...payConfig, qr: "" }; setPayConfig(u); localStorage.setItem("nx-pay-config", JSON.stringify(u)); showToast("QR dihapus"); }}
-                  style={{ ...S.uploadBtn, background: "#FCEBEB", color: "#A32D2D", border: "0.5px solid #F7C1C1", cursor: "pointer" }}>🗑️ Hapus</button>
-              </div>
+    <div style={{ display: "flex", flexDirection: "column" as const, gap: 12 }}>
+      <div style={S.card}>
+        <div style={S.cardHead}>📷 QR Code Pembayaran</div>
+        <p style={S.cardSub}>Upload QR DANA/GoPay/OVO. User akan melihat ini saat bayar.</p>
+        {payConfig.qr ? (
+          <div style={{ textAlign: "center" as const }}>
+            <img src={payConfig.qr} alt="QR" style={{ width: "100%", maxWidth: 200, borderRadius: 12, marginBottom: 12, border: "1px solid #e5e5e5" }} />
+            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              <label style={S.uploadBtn}>🔄 Ganti<input type="file" accept="image/*" style={{ display: "none" }} onChange={handleQrUpload} /></label>
+              <button onClick={() => { const u = { ...payConfig, qr: "" }; setPayConfig(u); localStorage.setItem("nx-pay-config", JSON.stringify(u)); }}
+                style={{ ...S.uploadBtn, background: "#FEE2E2", color: "#DC2626", border: "1px solid #FECACA", cursor: "pointer" }}>🗑️ Hapus</button>
             </div>
-          ) : (
-            <label style={S.dropzone}>
-              <span style={{ fontSize: 32 }}>📤</span>
-              <span style={{ fontWeight: 500 }}>Upload QR Code</span>
-              <span style={{ fontSize: 11, color: "#aaa" }}>Klik atau drag & drop (PNG/JPG, maks 2MB)</span>
-              <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleQrUpload} />
-            </label>
-          )}
-        </div>
-        <div style={S.card}>
-          <div style={S.cardHead}>Info DANA</div>
-          <div style={{ fontSize: 12, color: "#888", marginBottom: 14 }}>Nomor dan nama rekening yang ditampilkan ke user.</div>
-          <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
-            {[
-              { label: "Nomor DANA / HP", key: "danaNumber", ph: "cth: 08123456789" },
-              { label: "Nama Pemilik", key: "danaName", ph: "cth: Nixx Team" },
-            ].map(f => (
-              <div key={f.key}>
-                <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>{f.label}</div>
-                <input value={(payDraft as any)[f.key]}
-                  onChange={e => setPayDraft(d => ({ ...d, [f.key]: e.target.value }))}
-                  placeholder={f.ph} style={S.input} />
-              </div>
-            ))}
-            <div>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>Catatan untuk User</div>
-              <textarea value={payDraft.note} onChange={e => setPayDraft(d => ({ ...d, note: e.target.value }))}
-                placeholder="cth: Kirim bukti transfer ke @nixxteam" style={{ ...S.input, minHeight: 60, resize: "vertical" as const }} />
-            </div>
-            <button onClick={savePayInfo} style={S.primaryBtn}>💾 Simpan Info DANA</button>
           </div>
+        ) : (
+          <label style={S.dropzone}>
+            <span style={{ fontSize: 36 }}>📤</span>
+            <span style={{ fontWeight: 600, fontSize: 14 }}>Upload QR Code</span>
+            <span style={{ fontSize: 12, color: "#aaa" }}>PNG/JPG · Maks 2MB</span>
+            <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleQrUpload} />
+          </label>
+        )}
+      </div>
+      <div style={S.card}>
+        <div style={S.cardHead}>💰 Info DANA</div>
+        <p style={S.cardSub}>Nomor dan nama rekening yang ditampilkan ke user.</p>
+        <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
+          {[
+            { label: "Nomor DANA / HP", key: "danaNumber", ph: "08123456789" },
+            { label: "Nama Pemilik", key: "danaName", ph: "Nixx Team" },
+          ].map(f => (
+            <div key={f.key}>
+              <div style={S.inputLabel}>{f.label}</div>
+              <input value={(payDraft as any)[f.key]}
+                onChange={e => setPayDraft(d => ({ ...d, [f.key]: e.target.value }))}
+                placeholder={f.ph} style={S.input} />
+            </div>
+          ))}
+          <div>
+            <div style={S.inputLabel}>Catatan untuk User</div>
+            <textarea value={payDraft.note} onChange={e => setPayDraft(d => ({ ...d, note: e.target.value }))}
+              placeholder="Kirim bukti transfer ke @nixxteam" style={{ ...S.input, minHeight: 64, resize: "vertical" as const }} />
+          </div>
+          <button onClick={savePayInfo} style={S.primaryBtn}>💾 Simpan</button>
         </div>
       </div>
     </div>
   );
 
   const renderHarga = () => (
-    <div>
-      <div style={S.pageHeader}>
-        <div style={S.pageTitle}>Harga Paket Premium</div>
-        <div style={S.pageSub}>Perubahan langsung berlaku realtime ke halaman pembayaran user.</div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
-        {pricing.map(tier => (
-          <div key={tier.id} style={{ ...S.card, border: tier.popular ? "1.5px solid #AFA9EC" : "0.5px solid #e5e5e5", position: "relative" as const }}>
-            {tier.popular && (
-              <div style={{ position: "absolute" as const, top: -10, left: "50%", transform: "translateX(-50%)", background: "#7F77DD", color: "#fff", fontSize: 10, fontWeight: 600, padding: "2px 12px", borderRadius: 20 }}>Terpopuler</div>
-            )}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" as const, gap: 8 }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{tier.name}</div>
-                <div style={{ fontSize: 12, color: "#888" }}>{tier.duration}</div>
+    <div style={{ display: "flex", flexDirection: "column" as const, gap: 12 }}>
+      {pricing.map(tier => (
+        <div key={tier.id} style={{ ...S.card, border: tier.popular ? "2px solid #7C3AED" : "1px solid #E5E7EB", position: "relative" as const }}>
+          {tier.popular && (
+            <div style={{ position: "absolute" as const, top: -10, left: 16, background: "#7C3AED", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 10px", borderRadius: 20 }}>⭐ Terpopuler</div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" as const, gap: 8, marginBottom: 10 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{tier.name}</div>
+              <div style={{ fontSize: 12, color: "#888" }}>{tier.duration}</div>
+            </div>
+            {editPrice?.id === tier.id ? (
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input value={editPrice.value} onChange={e => setEditPrice({ ...editPrice, value: e.target.value })}
+                  style={{ ...S.input, width: 110, padding: "6px 10px" }} onKeyDown={e => e.key === "Enter" && savePrice(tier.id)} autoFocus />
+                <button onClick={() => savePrice(tier.id)} style={{ ...S.iconBtn, background: "#D1FAE5", color: "#059669" }}>✓</button>
+                <button onClick={() => setEditPrice(null)} style={{ ...S.iconBtn, background: "#FEE2E2", color: "#DC2626" }}>✕</button>
               </div>
+            ) : (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {editPrice?.id === tier.id ? (
-                  <>
-                    <input value={editPrice.value} onChange={e => setEditPrice({ ...editPrice, value: e.target.value })}
-                      style={{ ...S.input, width: 120 }} onKeyDown={e => e.key === "Enter" && savePrice(tier.id)} autoFocus />
-                    <button onClick={() => savePrice(tier.id)} style={{ ...S.iconBtn, background: "#E1F5EE", color: "#0F6E56" }}>✓</button>
-                    <button onClick={() => setEditPrice(null)} style={{ ...S.iconBtn, background: "#FCEBEB", color: "#A32D2D" }}>✕</button>
-                  </>
-                ) : (
-                  <>
-                    <span style={{ fontWeight: 600, color: "#534AB7", fontSize: 15 }}>Rp {tier.price.toLocaleString("id-ID")}</span>
-                    <span style={{ fontSize: 12, color: "#aaa" }}>/ {tier.duration}</span>
-                    <button onClick={() => setEditPrice({ id: tier.id, value: String(tier.price) })}
-                      style={{ ...S.iconBtn, background: "#EEEDFE", color: "#534AB7", padding: "4px 10px", borderRadius: 7, fontSize: 12 }}>
-                      ✏️ Edit Harga
-                    </button>
-                  </>
-                )}
+                <span style={{ fontWeight: 700, color: "#7C3AED", fontSize: 16 }}>Rp {tier.price.toLocaleString("id-ID")}</span>
+                <button onClick={() => setEditPrice({ id: tier.id, value: String(tier.price) })}
+                  style={{ ...S.iconBtn, background: "#EDE9FE", color: "#7C3AED", fontSize: 12, padding: "4px 10px" }}>✏️</button>
               </div>
-            </div>
-            <div style={{ marginTop: 12, fontSize: 11, color: "#888", marginBottom: 6 }}>FITUR:</div>
-            <ul style={{ listStyle: "none", display: "flex", flexDirection: "column" as const, gap: 4, marginBottom: 10 }}>
-              {tier.features.map((f, fi) => (
-                <li key={fi} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-                  <span style={{ color: "#534AB7" }}>✓</span>
-                  <span style={{ flex: 1 }}>{f}</span>
-                  <button onClick={() => removeFeature(tier.id, fi)} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 16 }}>×</button>
-                </li>
-              ))}
-            </ul>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input placeholder="+ Tambah fitur..." value={newFeature[tier.id] ?? ""}
-                onChange={e => setNewFeature(f => ({ ...f, [tier.id]: e.target.value }))}
-                onKeyDown={e => e.key === "Enter" && addFeature(tier.id)}
-                style={{ ...S.input, flex: 1 }} />
-              <button onClick={() => addFeature(tier.id)} style={{ ...S.iconBtn, background: "#EEEDFE", color: "#534AB7", padding: "4px 14px", borderRadius: 8 }}>+</button>
-            </div>
+            )}
           </div>
-        ))}
-      </div>
+          <div style={{ fontSize: 11, color: "#888", fontWeight: 600, marginBottom: 6, letterSpacing: "0.05em" }}>FITUR</div>
+          <ul style={{ listStyle: "none", display: "flex", flexDirection: "column" as const, gap: 4, marginBottom: 10 }}>
+            {tier.features.map((f, fi) => (
+              <li key={fi} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                <span style={{ color: "#7C3AED", flexShrink: 0 }}>✓</span>
+                <span style={{ flex: 1 }}>{f}</span>
+                <button onClick={() => removeFeature(tier.id, fi)}
+                  style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 16, padding: "0 2px" }}>×</button>
+              </li>
+            ))}
+          </ul>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input placeholder="+ Tambah fitur..." value={newFeature[tier.id] ?? ""}
+              onChange={e => setNewFeature(f => ({ ...f, [tier.id]: e.target.value }))}
+              onKeyDown={e => e.key === "Enter" && addFeature(tier.id)}
+              style={{ ...S.input, flex: 1, padding: "6px 10px" }} />
+            <button onClick={() => addFeature(tier.id)} style={{ ...S.iconBtn, background: "#EDE9FE", color: "#7C3AED", padding: "6px 14px" }}>+</button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 
   const renderStatistik = () => (
     <div>
-      <div style={{ ...S.pageHeader, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <div>
-          <div style={S.pageTitle}>Statistik</div>
-          <div style={S.pageSub}>Analitik lengkap platform Nixx AI</div>
-        </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button style={{ ...S.pill, background: "#7F77DD", color: "#fff", border: "none" }}>7 Hari</button>
-          <button style={{ ...S.pill }}>30 Hari</button>
-        </div>
-      </div>
       <div style={S.statsGrid}>
         {[
-          { label: "User Online Sekarang", value: `${Math.floor(users.length * 0.3 + 10)}`, live: true },
-          { label: "Total Chat Keseluruhan", value: (chatHistory.length + 94000).toLocaleString(), live: true },
-          { label: "Pendapatan Bulan Ini", value: `Rp ${(premiumUsers.length * 49000 / 1000).toFixed(1)}Jt`, live: false },
-          { label: "Avg. Chat/User/Hari", value: `${(totalMsgs / Math.max(users.length, 1) / 7 + 18).toFixed(1)}`, live: false },
+          { label: "Online Sekarang", value: `${Math.max(Math.floor(users.length * 0.3), 1)}`, live: true },
+          { label: "Total Sesi", value: (chatHistory.length + 94000).toLocaleString(), live: true },
+          { label: "Avg Pesan/User", value: `${(totalMsgs / Math.max(users.length, 1) + 18).toFixed(0)}`, live: false },
+          { label: "Pendapatan Est.", value: `Rp ${(premiumUsers.length * 49).toFixed(0)}K`, live: false },
         ].map(s => (
           <div key={s.label} style={S.statCard}>
-            {s.live && <span style={{ fontSize: 10, color: "#1D9E75", marginBottom: 4, display: "block" }}>● Live</span>}
-            <div style={{ fontSize: "1.4rem", fontWeight: 600, lineHeight: 1 }}>{s.value}</div>
-            <div style={S.statLabel}>{s.label}</div>
+            {s.live && <div style={{ fontSize: 10, color: "#059669", marginBottom: 4 }}>● Live</div>}
+            <div style={{ fontSize: "1.4rem", fontWeight: 700, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>{s.label}</div>
           </div>
         ))}
       </div>
       <div style={{ ...S.card, marginBottom: 12 }}>
-        <div style={S.cardHead}>User Baru (27 Hari Terakhir)</div>
-        <LineChart data={dailyUsers} color="#7F77DD" />
+        <div style={S.cardHead}>📈 User Baru (27 Hari Terakhir)</div>
+        <LineChart data={dailyUsers} />
       </div>
       <div style={S.card}>
-        <div style={S.cardHead}>Model AI Terpopuler</div>
+        <div style={S.cardHead}>🤖 Model AI Terpopuler</div>
         {models.map(m => (
-          <div key={m.name} style={{ marginBottom: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
-              <span>{m.name}</span><span style={{ color: "#888" }}>{m.count.toLocaleString()}</span>
+          <div key={m.name} style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+              <span style={{ fontWeight: 500 }}>{m.name}</span>
+              <span style={{ color: "#888" }}>{m.count.toLocaleString()}</span>
             </div>
-            <div style={{ background: "#f0f0f0", borderRadius: 4, height: 5, overflow: "hidden" }}>
-              <div style={{ background: "#7F77DD", borderRadius: 4, height: 5, width: `${(m.count / models[0].count) * 100}%` }} />
+            <div style={{ background: "#F3F4F6", borderRadius: 6, height: 6, overflow: "hidden" }}>
+              <div style={{ background: "linear-gradient(90deg,#7C3AED,#A855F7)", borderRadius: 6, height: 6, width: `${(m.count / models[0].count) * 100}%` }} />
             </div>
           </div>
         ))}
@@ -515,52 +467,54 @@ export default function AdminPage() {
   );
 
   const renderBroadcast = () => (
-    <div>
-      <div style={S.pageHeader}>
-        <div style={S.pageTitle}>Broadcast</div>
-        <div style={S.pageSub}>Kirim pengumuman ke semua pengguna</div>
+    <div style={S.card}>
+      <div style={S.cardHead}>📢 Kirim Pengumuman</div>
+      <p style={S.cardSub}>Pesan akan muncul saat user membuka dashboard.</p>
+      <textarea value={broadcast} onChange={e => setBroadcast(e.target.value)}
+        placeholder="Tulis pesan broadcast di sini..."
+        style={{ ...S.input, width: "100%", minHeight: 120, resize: "vertical" as const, marginBottom: 10 }} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 12, color: "#aaa" }}>{broadcast.length} karakter</span>
+        <button onClick={sendBroadcast} disabled={!broadcast.trim()}
+          style={{ ...S.primaryBtn, opacity: broadcast.trim() ? 1 : 0.5 }}>
+          📢 Kirim
+        </button>
       </div>
-      <div style={S.card}>
-        <textarea value={broadcast} onChange={e => setBroadcast(e.target.value)}
-          placeholder="Tulis pesan broadcast di sini... (akan muncul saat user buka dashboard)"
-          style={{ ...S.input, width: "100%", minHeight: 120, resize: "vertical" as const }} />
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-          <span style={{ fontSize: 12, color: "#aaa" }}>{broadcast.length} karakter</span>
-          <button onClick={sendBroadcast} disabled={!broadcast.trim()}
-            style={{ ...S.primaryBtn, opacity: broadcast.trim() ? 1 : 0.5, cursor: broadcast.trim() ? "pointer" : "not-allowed" }}>
-            📢 Kirim Broadcast
-          </button>
-        </div>
-        {broadcastSent && <p style={{ color: "#1D9E75", fontSize: 13, marginTop: 8 }}>✅ Broadcast berhasil dikirim!</p>}
-      </div>
+      {broadcastSent && <p style={{ color: "#059669", fontSize: 13, marginTop: 10 }}>✅ Broadcast terkirim ke semua user!</p>}
     </div>
   );
 
   const renderPengaturan = () => (
-    <div>
-      <div style={S.pageHeader}>
-        <div style={S.pageTitle}>Pengaturan</div>
-        <div style={S.pageSub}>Konfigurasi platform</div>
-      </div>
-      <div style={{ ...S.card, marginBottom: 12 }}>
-        <div style={S.cardHead}>Email Admin</div>
-        <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>Daftar email yang dapat mengakses admin panel.</div>
+    <div style={{ display: "flex", flexDirection: "column" as const, gap: 12 }}>
+      <div style={S.card}>
+        <div style={S.cardHead}>🛡️ Email Admin</div>
         {ADMIN_EMAILS.map(e => (
-          <div key={e} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "#f7f5ff", borderRadius: 8, marginBottom: 5, fontSize: 13 }}>
-            <span style={{ color: "#534AB7" }}>🛡️</span> {e}
+          <div key={e} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F5F3FF", borderRadius: 8, marginBottom: 6, fontSize: 13 }}>
+            <span>🛡️</span><span style={{ color: "#4C1D95" }}>{e}</span>
           </div>
         ))}
       </div>
       <div style={S.card}>
-        <div style={S.cardHead}>Aksi Berbahaya</div>
+        <div style={S.cardHead}>ℹ️ Info Akun Admin</div>
+        <div style={{ fontSize: 13, color: "#555" }}>
+          <div style={{ marginBottom: 6 }}>👤 <strong>{user.username}</strong></div>
+          <div style={{ color: "#888" }}>{user.email}</div>
+        </div>
+      </div>
+      <div style={S.card}>
+        <div style={S.cardHead}>⚠️ Aksi Berbahaya</div>
         <button onClick={() => {
           if (confirm("Reset SEMUA data user? Tidak bisa dibatalkan!")) {
-            localStorage.removeItem("nx-users-db"); setUsers([]); showToast("Semua data user dihapus");
+            localStorage.removeItem("nx-users-db"); setUsers([]); showToast("🗑️ Data user direset");
           }
-        }} style={{ background: "#FCEBEB", border: "0.5px solid #F7C1C1", color: "#A32D2D", borderRadius: 9, padding: "8px 16px", fontSize: 13, cursor: "pointer", fontWeight: 500 }}>
+        }} style={{ background: "#FEE2E2", border: "1px solid #FECACA", color: "#DC2626", borderRadius: 10, padding: "10px 18px", fontSize: 13, cursor: "pointer", fontWeight: 500, width: "100%" }}>
           🗑️ Reset Semua Data User
         </button>
       </div>
+      <button onClick={logout}
+        style={{ ...S.primaryBtn, background: "#F3F4F6", color: "#374151", border: "1px solid #E5E7EB" }}>
+        ⏏ Keluar dari Admin
+      </button>
     </div>
   );
 
@@ -570,156 +524,204 @@ export default function AdminPage() {
     broadcast: renderBroadcast, pengaturan: renderPengaturan,
   };
 
-  /* ────────────────── LAYOUT ────────────────── */
+  const navigate = (p: Page) => { setPage(p); setDrawerOpen(false); };
+  const BOTTOM_NAV = ALL_NAV.slice(0, 5);
+
   return (
-    <div style={{ display: "flex", minHeight: "100dvh", background: "#F5F5F7", fontFamily: "Inter, -apple-system, sans-serif", color: "#1a1a1a" }}>
+    <div style={{ minHeight: "100dvh", background: "#F9FAFB", fontFamily: "Inter,-apple-system,sans-serif", color: "#111827", display: "flex", flexDirection: "column" as const }}>
       <style>{`
         * { box-sizing: border-box; }
+        input,textarea,button { font-family: inherit; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
-        @keyframes fadein { from { opacity:0; transform:translateY(-8px) } to { opacity:1; transform:none } }
-        @media (max-width: 640px) {
-          .nx-sidebar { width: 56px !important; }
-          .nx-sidebar .nx-nav-label { display: none !important; }
-          .nx-sidebar .nx-brand-meta { display: none !important; }
-          .nx-sidebar .nx-user-meta { display: none !important; }
-          .nx-sidebar .nx-nav-badge { display: none !important; }
-          .nx-sidebar .nx-section-label { display: none !important; }
+        @keyframes nx-fadein { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
+        @keyframes nx-slidein { from{transform:translateX(-100%)} to{transform:none} }
+        @media(min-width:768px) {
+          .nx-mobile-topbar { display: none !important; }
+          .nx-bottom-nav { display: none !important; }
+          .nx-drawer-overlay { display: none !important; }
+          .nx-desktop-layout { display: flex !important; }
+          .nx-main-pad { padding-bottom: 0 !important; }
+        }
+        @media(max-width:767px) {
+          .nx-desktop-layout { display: none !important; }
         }
       `}</style>
 
-      {/* Toast */}
+      {/* ── Toast ── */}
       {toast && (
-        <div style={{ position: "fixed" as const, top: 16, right: 16, zIndex: 9999, background: "#fff", border: `1.5px solid ${toast.ok ? "#9FE1CB" : "#F7C1C1"}`, borderRadius: 10, padding: "10px 18px", color: toast.ok ? "#0F6E56" : "#A32D2D", fontSize: 13, fontWeight: 500, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", animation: "fadein .2s" }}>
+        <div style={{ position: "fixed" as const, top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "#fff", border: `1.5px solid ${toast.ok ? "#A7F3D0" : "#FECACA"}`, borderRadius: 12, padding: "10px 20px", color: toast.ok ? "#065F46" : "#991B1B", fontSize: 14, fontWeight: 500, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", animation: "nx-fadein .2s", whiteSpace: "nowrap" as const, maxWidth: "90vw" }}>
           {toast.msg}
         </div>
       )}
 
-      {/* ── SIDEBAR ── */}
-      <aside className="nx-sidebar" style={{ width: 200, background: "#fff", borderRight: "0.5px solid #e8e8ec", display: "flex", flexDirection: "column" as const, flexShrink: 0 }}>
-        {/* Brand */}
-        <div style={{ padding: "14px 13px 12px", borderBottom: "0.5px solid #e8e8ec", display: "flex", alignItems: "center", gap: 9 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: "#EEEDFE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🛡️</div>
-          <div className="nx-brand-meta">
-            <div style={{ fontWeight: 600, fontSize: 13 }}>Nixx Admin</div>
-            <div style={{ fontSize: 10, color: "#aaa" }}>admin panel</div>
+      {/* ══════════════ MOBILE LAYOUT ══════════════ */}
+
+      {/* Mobile Top Bar */}
+      <div className="nx-mobile-topbar" style={{ position: "sticky" as const, top: 0, zIndex: 100, background: "#fff", borderBottom: "1px solid #E5E7EB", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+        <button onClick={() => setDrawerOpen(true)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, padding: "2px 4px", color: "#374151" }}>☰</button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{pageMeta[page]}</div>
+        </div>
+        <button onClick={() => { setUsers(loadUsers()); setPricing(loadPricing()); showToast("🔄 Diperbarui"); }}
+          style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "#6B7280" }}>⟳</button>
+      </div>
+
+      {/* Mobile Drawer Overlay */}
+      {drawerOpen && (
+        <div className="nx-drawer-overlay" onClick={() => setDrawerOpen(false)}
+          style={{ position: "fixed" as const, inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ position: "absolute" as const, left: 0, top: 0, bottom: 0, width: 240, background: "#fff", padding: "0 0 24px", animation: "nx-slidein .22s", overflowY: "auto" as const }}>
+            {/* Drawer Header */}
+            <div style={{ background: "linear-gradient(135deg,#7C3AED,#A855F7)", padding: "20px 16px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: 16 }}>
+                {(user.email[0] || "A").toUpperCase()}
+              </div>
+              <div>
+                <div style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{user.username || "Admin"}</div>
+                <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 11 }}>🛡️ Admin</div>
+              </div>
+            </div>
+            <div style={{ padding: "8px" }}>
+              {ALL_NAV.map(n => (
+                <button key={n.id} onClick={() => navigate(n.id)} style={{
+                  display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 14, marginBottom: 2,
+                  background: page === n.id ? "#F5F3FF" : "transparent",
+                  color: page === n.id ? "#7C3AED" : "#374151",
+                  fontWeight: page === n.id ? 600 : 400,
+                  textAlign: "left" as const,
+                }}>
+                  <span style={{ fontSize: 18, width: 24, textAlign: "center" as const }}>{n.icon}</span>
+                  {n.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Nav */}
-        <nav style={{ flex: 1, padding: "8px 8px", overflowY: "auto" as const }}>
-          <div className="nx-section-label" style={{ fontSize: 9, color: "#bbb", letterSpacing: "0.05em", textTransform: "uppercase" as const, padding: "6px 8px 3px" }}>Menu</div>
-          {NAV_TOP.map(n => (
-            <button key={n.id} onClick={() => setPage(n.id)} style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "7px 9px", borderRadius: 8,
-              border: "none", width: "100%", textAlign: "left" as const, cursor: "pointer", fontSize: 13,
-              background: page === n.id ? "#EEEDFE" : "transparent",
-              color: page === n.id ? "#534AB7" : "#666",
-              fontWeight: page === n.id ? 600 : 400,
-              marginBottom: 1,
-            }}>
-              <span style={{ fontSize: 15, flexShrink: 0 }}>{n.icon}</span>
-              <span className="nx-nav-label" style={{ flex: 1 }}>{n.label}</span>
-              {n.id === "users" && users.length > 0 && (
-                <span className="nx-nav-badge" style={{ background: "#7F77DD", color: "#fff", borderRadius: 10, padding: "1px 6px", fontSize: 10, fontWeight: 600 }}>{users.length}</span>
-              )}
-            </button>
-          ))}
-          <div className="nx-section-label" style={{ fontSize: 9, color: "#bbb", letterSpacing: "0.05em", textTransform: "uppercase" as const, padding: "10px 8px 3px" }}>Kelola</div>
-          {NAV_BOT.map(n => (
-            <button key={n.id} onClick={() => setPage(n.id)} style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "7px 9px", borderRadius: 8,
-              border: "none", width: "100%", textAlign: "left" as const, cursor: "pointer", fontSize: 13,
-              background: page === n.id ? "#EEEDFE" : "transparent",
-              color: page === n.id ? "#534AB7" : "#666",
-              fontWeight: page === n.id ? 600 : 400,
-              marginBottom: 1,
-            }}>
-              <span style={{ fontSize: 15, flexShrink: 0 }}>{n.icon}</span>
-              <span className="nx-nav-label" style={{ flex: 1 }}>{n.label}</span>
-            </button>
-          ))}
-        </nav>
+      {/* Mobile Page Content */}
+      <div className="nx-main-pad" style={{ flex: 1, overflowY: "auto" as const, padding: "16px 16px 80px" }}>
+        {pages[page]()}
+      </div>
 
-        {/* User info + logout */}
-        <div style={{ padding: "9px 8px", borderTop: "0.5px solid #e8e8ec" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 9px", borderRadius: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#EEEDFE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "#534AB7", flexShrink: 0 }}>
-              {(user.email[0] || "A").toUpperCase()}
-            </div>
-            <div className="nx-user-meta" style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>Nixx Admin</div>
-              <div style={{ fontSize: 9, color: "#aaa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{user.email}</div>
-            </div>
-          </div>
-          <button onClick={logout} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "7px 9px", borderRadius: 8, border: "none", background: "#FCEBEB", color: "#A32D2D", cursor: "pointer", fontSize: 12, fontWeight: 500, marginTop: 4 }}>
-            <span>⏏</span><span className="nx-nav-label">Keluar</span>
+      {/* Mobile Bottom Nav */}
+      <div className="nx-bottom-nav" style={{ position: "fixed" as const, bottom: 0, left: 0, right: 0, background: "#fff", borderTop: "1px solid #E5E7EB", display: "flex", zIndex: 100, paddingBottom: "env(safe-area-inset-bottom,0)" }}>
+        {BOTTOM_NAV.map(n => (
+          <button key={n.id} onClick={() => setPage(n.id)} style={{
+            flex: 1, display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 2, padding: "8px 4px", background: "none", border: "none", cursor: "pointer",
+            color: page === n.id ? "#7C3AED" : "#9CA3AF",
+          }}>
+            <span style={{ fontSize: 20 }}>{n.icon}</span>
+            <span style={{ fontSize: 9, fontWeight: page === n.id ? 600 : 400 }}>{n.label}</span>
           </button>
-        </div>
-      </aside>
+        ))}
+        <button onClick={() => setDrawerOpen(true)} style={{ flex: 1, display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 2, padding: "8px 4px", background: "none", border: "none", cursor: "pointer", color: "#9CA3AF" }}>
+          <span style={{ fontSize: 20 }}>•••</span>
+          <span style={{ fontSize: 9 }}>Lainnya</span>
+        </button>
+      </div>
 
-      {/* ── MAIN ── */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column" as const, overflow: "hidden" }}>
-        {/* Top bar */}
-        <div style={{ padding: "13px 20px 11px", borderBottom: "0.5px solid #e8e8ec", background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>{({ dashboard: "Dashboard", users: "Manajemen User", premium: "User Premium", payment: "Payment", harga: "Harga Paket", statistik: "Statistik", broadcast: "Broadcast", pengaturan: "Pengaturan" })[page]}</div>
-            <div style={{ fontSize: 11, color: "#aaa", marginTop: 1 }}>
-              {page === "users" && <>{users.length} total pengguna &nbsp;<span style={{ color: "#1D9E75" }}>● Realtime</span></>}
-              {page === "dashboard" && "Ringkasan platform Nixx AI"}
-              {page === "premium" && `${premiumUsers.length} pengguna aktif premium`}
-              {page === "statistik" && "Analitik lengkap platform Nixx AI"}
-              {page === "payment" && "Kelola metode pembayaran"}
-              {page === "harga" && "Kelola harga dan fitur premium"}
-              {page === "broadcast" && "Kirim pengumuman ke semua user"}
-              {page === "pengaturan" && "Konfigurasi platform"}
+      {/* ══════════════ DESKTOP LAYOUT ══════════════ */}
+      <div className="nx-desktop-layout" style={{ display: "none", position: "fixed" as const, inset: 0, flexDirection: "row" as const }}>
+        {/* Sidebar */}
+        <aside style={{ width: 220, background: "#fff", borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column" as const, flexShrink: 0, overflowY: "auto" as const }}>
+          <div style={{ padding: "16px", borderBottom: "1px solid #E5E7EB", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🛡️</div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Nixx Admin</div>
+              <div style={{ fontSize: 11, color: "#9CA3AF" }}>Admin Panel</div>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "#0F6E56", background: "#E1F5EE", padding: "3px 9px", borderRadius: 20 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#1D9E75", display: "inline-block" }} />Realtime
-            </span>
-            <button onClick={() => { setUsers(loadUsers()); setPricing(loadPricing()); showToast("Data diperbarui"); }}
-              style={{ ...S.iconBtn, background: "#f7f7f7", padding: "6px 8px", borderRadius: 8 }}>🔄</button>
+          <nav style={{ flex: 1, padding: "8px" }}>
+            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em", padding: "8px 10px 4px", textTransform: "uppercase" as const }}>Menu</div>
+            {ALL_NAV.slice(0, 4).map(n => (
+              <button key={n.id} onClick={() => setPage(n.id)} style={{
+                display: "flex", alignItems: "center", gap: 9, padding: "9px 10px", borderRadius: 9, border: "none", width: "100%", cursor: "pointer", fontSize: 13, marginBottom: 2,
+                background: page === n.id ? "#F5F3FF" : "transparent",
+                color: page === n.id ? "#7C3AED" : "#374151",
+                fontWeight: page === n.id ? 600 : 400,
+                textAlign: "left" as const,
+              }}>
+                <span style={{ fontSize: 16 }}>{n.icon}</span>{n.label}
+                {n.id === "users" && users.length > 0 && <span style={{ marginLeft: "auto", background: "#7C3AED", color: "#fff", borderRadius: 10, padding: "1px 6px", fontSize: 10 }}>{users.length}</span>}
+              </button>
+            ))}
+            <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, letterSpacing: "0.06em", padding: "12px 10px 4px", textTransform: "uppercase" as const }}>Kelola</div>
+            {ALL_NAV.slice(4).map(n => (
+              <button key={n.id} onClick={() => setPage(n.id)} style={{
+                display: "flex", alignItems: "center", gap: 9, padding: "9px 10px", borderRadius: 9, border: "none", width: "100%", cursor: "pointer", fontSize: 13, marginBottom: 2,
+                background: page === n.id ? "#F5F3FF" : "transparent",
+                color: page === n.id ? "#7C3AED" : "#374151",
+                fontWeight: page === n.id ? 600 : 400,
+                textAlign: "left" as const,
+              }}>
+                <span style={{ fontSize: 16 }}>{n.icon}</span>{n.label}
+              </button>
+            ))}
+          </nav>
+          <div style={{ padding: "12px 8px", borderTop: "1px solid #E5E7EB" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 9, marginBottom: 4 }}>
+              <div style={{ ...S.avatar, width: 30, height: 30, fontSize: 13, flexShrink: 0 }}>{(user.email[0] || "A").toUpperCase()}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{user.username || "Admin"}</div>
+                <div style={{ fontSize: 10, color: "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{user.email}</div>
+              </div>
+            </div>
+            <button onClick={logout} style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", borderRadius: 9, border: "none", background: "#FEE2E2", color: "#DC2626", cursor: "pointer", fontSize: 12, fontWeight: 500 }}>
+              ⏏ Keluar
+            </button>
           </div>
-        </div>
+        </aside>
 
-        {/* Page content */}
-        <div style={{ flex: 1, overflowY: "auto" as const, padding: "18px 20px" }}>
-          {pages[page]()}
-        </div>
-      </main>
+        {/* Desktop Main */}
+        <main style={{ flex: 1, display: "flex", flexDirection: "column" as const, overflow: "hidden" }}>
+          <div style={{ padding: "14px 24px", borderBottom: "1px solid #E5E7EB", background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{pageMeta[page]}</div>
+              <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>Nixx AI Admin Panel</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ fontSize: 11, color: "#059669", background: "#D1FAE5", padding: "3px 10px", borderRadius: 20, display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10B981", display: "inline-block" }} />Realtime
+              </span>
+              <button onClick={() => { setUsers(loadUsers()); setPricing(loadPricing()); showToast("🔄 Diperbarui"); }}
+                style={{ background: "#F3F4F6", border: "1px solid #E5E7EB", borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 16 }}>⟳</button>
+            </div>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto" as const, padding: "20px 24px" }}>
+            {pages[page]()}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
 
-/* ── STYLES ────────────────────────────────────────────── */
+/* ── STYLES ── */
 const S = {
-  center: { minHeight: "100dvh", background: "#f5f5f7", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" as const, gap: 8, textAlign: "center" as const },
-  pageHeader: { marginBottom: 18 },
-  pageTitle: { fontSize: "1.25rem", fontWeight: 600, color: "#1a1a1a" },
-  pageSub: { fontSize: 13, color: "#888", marginTop: 3 },
-  statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginBottom: 14 },
-  statCard: { background: "#fff", border: "0.5px solid #e8e8ec", borderRadius: 12, padding: "13px 14px" },
-  statLabel: { fontSize: 11, color: "#888", marginTop: 3 },
-  card: { background: "#fff", border: "0.5px solid #e8e8ec", borderRadius: 12, padding: "14px 16px", marginBottom: 0 },
-  cardHead: { fontSize: 13, fontWeight: 500, marginBottom: 12, color: "#444" },
-  tableWrap: { background: "#fff", border: "0.5px solid #e8e8ec", borderRadius: 12, overflow: "hidden" as const },
-  table: { width: "100%", borderCollapse: "collapse" as const, fontSize: 13 },
-  th: { padding: "8px 12px", textAlign: "left" as const, fontSize: 10, color: "#aaa", fontWeight: 500, letterSpacing: "0.04em", textTransform: "uppercase" as const },
-  td: { padding: "10px 12px" },
-  userAvatar: { width: 30, height: 30, borderRadius: "50%", background: "#EEEDFE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "#534AB7", flexShrink: 0 },
-  badge: (c: "purple" | "gray" | "red") => ({
-    background: c === "purple" ? "#EEEDFE" : c === "red" ? "#FCEBEB" : "#f5f5f5",
-    color: c === "purple" ? "#534AB7" : c === "red" ? "#A32D2D" : "#888",
-    borderRadius: 20, padding: "2px 8px", fontSize: 11, fontWeight: 500,
+  center: { minHeight: "100dvh", background: "#F9FAFB", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" as const, gap: 8, textAlign: "center" as const, padding: 24 },
+  linkBtn: { background: "#7C3AED", color: "#fff", padding: "10px 24px", borderRadius: 10, textDecoration: "none", fontSize: 14, fontWeight: 600 },
+  statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(130px,1fr))", gap: 10, marginBottom: 14 },
+  statCard: { background: "#fff", border: "1px solid #E5E7EB", borderRadius: 14, padding: "14px" },
+  card: { background: "#fff", border: "1px solid #E5E7EB", borderRadius: 14, padding: "14px 16px", marginBottom: 0 },
+  cardHead: { fontSize: 14, fontWeight: 600, marginBottom: 8, color: "#111827" },
+  cardSub: { fontSize: 12, color: "#9CA3AF", marginBottom: 12, marginTop: -4 },
+  userCard: { background: "#fff", border: "1px solid #E5E7EB", borderRadius: 14, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 },
+  searchWrap: { display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, padding: "8px 12px", flex: 1 },
+  searchInput: { border: "none", background: "transparent", fontSize: 13, color: "#111827", outline: "none", flex: 1, width: "100%" } as React.CSSProperties,
+  avatar: { width: 38, height: 38, borderRadius: "50%", background: "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "#7C3AED" },
+  badge: (c: "gold" | "gray" | "red") => ({
+    background: c === "gold" ? "#FEF3C7" : c === "red" ? "#FEE2E2" : "#F3F4F6",
+    color: c === "gold" ? "#92400E" : c === "red" ? "#991B1B" : "#6B7280",
+    borderRadius: 20, padding: "2px 8px", fontSize: 11, fontWeight: 600,
   }),
-  searchBar: { display: "flex", alignItems: "center", gap: 7, background: "#fff", border: "0.5px solid #e8e8ec", borderRadius: 9, padding: "6px 11px", flex: 1 },
-  searchInput: { border: "none", background: "transparent", fontSize: 13, color: "#1a1a1a", outline: "none", flex: 1 } as React.CSSProperties,
-  pill: { padding: "4px 11px", borderRadius: 20, border: "0.5px solid #e0e0e0", background: "transparent", fontSize: 11, color: "#888", cursor: "pointer" } as React.CSSProperties,
-  iconBtn: { border: "none", cursor: "pointer", borderRadius: 7, padding: "5px 7px", fontSize: 14 } as React.CSSProperties,
-  input: { width: "100%", background: "#f7f7f9", border: "0.5px solid #e8e8ec", borderRadius: 8, padding: "7px 11px", color: "#1a1a1a", fontSize: 13, outline: "none", fontFamily: "inherit" } as React.CSSProperties,
-  primaryBtn: { background: "#7F77DD", color: "#fff", border: "none", borderRadius: 9, padding: "8px 18px", fontWeight: 500, fontSize: 13, cursor: "pointer" } as React.CSSProperties,
-  uploadBtn: { background: "#EEEDFE", color: "#534AB7", border: "0.5px solid #AFA9EC", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 500, cursor: "pointer", display: "inline-block" as const },
-  dropzone: { display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", border: "1.5px dashed #d0d0e0", borderRadius: 10, padding: "1.5rem 1rem", cursor: "pointer", textAlign: "center" as const, gap: 6, fontSize: 13 },
+  iconBtn: { border: "none", cursor: "pointer", borderRadius: 8, padding: "7px 9px", fontSize: 15 } as React.CSSProperties,
+  inputLabel: { fontSize: 12, color: "#6B7280", fontWeight: 500, marginBottom: 4 },
+  input: { width: "100%", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10, padding: "9px 12px", color: "#111827", fontSize: 13, outline: "none", fontFamily: "inherit" } as React.CSSProperties,
+  primaryBtn: { background: "linear-gradient(135deg,#7C3AED,#A855F7)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontWeight: 600, fontSize: 13, cursor: "pointer", width: "100%" } as React.CSSProperties,
+  uploadBtn: { background: "#EDE9FE", color: "#6D28D9", border: "1px solid #DDD6FE", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer", display: "inline-block" as const },
+  dropzone: { display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", border: "2px dashed #DDD6FE", borderRadius: 12, padding: "2rem 1rem", cursor: "pointer", textAlign: "center" as const, gap: 6, fontSize: 13 },
+  empty: { textAlign: "center" as const, color: "#9CA3AF", padding: "3rem 1rem", background: "#fff", borderRadius: 14, border: "1px solid #E5E7EB" },
 };
