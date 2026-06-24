@@ -47,8 +47,8 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "catalog:",
+    "@workspace/api-client-react": "workspace:*",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "cmdk": "^1.1.1",
@@ -63,11 +63,8 @@
     "react-dom": "catalog:",
     "react-hook-form": "^7.55.0",
     "react-icons": "^5.4.0",
-    "react-markdown": "^9.1.0",
     "react-resizable-panels": "^2.1.7",
-    "react-syntax-highlighter": "^15.6.6",
     "recharts": "^2.15.2",
-    "remark-gfm": "^4.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "catalog:",
     "tailwindcss": "catalog:",
@@ -76,5 +73,9 @@
     "vite": "catalog:",
     "wouter": "^3.3.5",
     "zod": "catalog:"
+  },
+  "dependencies": {
+    "@clerk/react": "^6.6.4",
+    "@clerk/themes": "^2.4.57"
   }
 }
