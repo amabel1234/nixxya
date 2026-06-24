@@ -19,6 +19,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
+  resetPassword: (email: string, newPassword: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -88,6 +89,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(authUser);
   };
 
+  const resetPassword = async (email: string, newPassword: string) => {
+    const users = getStoredUsers();
+    const idx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+    if (idx === -1) {
+      throw new Error("Email tidak ditemukan. Pastikan email sudah terdaftar.");
+    }
+    if (newPassword.length < 6) {
+      throw new Error("Password baru minimal 6 karakter.");
+    }
+    users[idx].password = newPassword;
+    saveUsers(users);
+  };
+
   const logout = () => {
     localStorage.removeItem(SESSION_KEY);
     setToken(null);
@@ -96,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, resetPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );
