@@ -1,5 +1,5 @@
 // Vercel Serverless Function — /api/chat
-    // Groq (jika ada GROQ_API_KEY) → fallback Pollinations GET (no key needed)
+    // Groq primary → Pollinations fallback
 
     const GROQ_MODELS = {
       deepseekv3:"llama-3.3-70b-versatile", christyai:"llama-3.3-70b-versatile",
@@ -17,11 +17,30 @@
       venice:"llama-3.3-70b-versatile", ripple:"llama-3.1-8b-instant",
     };
 
+    const DEFAULT_SYSTEM = `Kamu adalah Nixx AI — asisten AI cerdas, jujur, dan sangat membantu buatan Nixx Team.
+
+  Panduan respons:
+  - Jawab dalam bahasa yang sama dengan pengguna (Indonesia atau Inggris).
+  - Berikan jawaban yang lengkap, akurat, dan informatif.
+  - Untuk pertanyaan teknis/koding: sertakan contoh kode yang bisa langsung dipakai.
+  - Untuk pertanyaan umum: berikan penjelasan yang jelas dan mudah dipahami.
+  - Gunakan format yang rapi (poin, heading, kode block) bila perlu.
+  - Jangan tolak pertanyaan yang wajar — selalu coba bantu sebaik mungkin.
+  - Jangan sebut dirimu ChatGPT, Claude, atau nama AI lain. Kamu adalah Nixx AI.
+  - Hindari filler seperti "Tentu!", "Baik!", "Tentu saja!" di awal kalimat.
+  - Jawab langsung ke inti pertanyaan.`;
+
+    function injectSystem(messages) {
+      const hasSys = messages.some(m => m.role === "system");
+      if (hasSys) return messages;
+      return [{ role: "system", content: DEFAULT_SYSTEM }, ...messages];
+    }
+
     function clean(t) {
       t = t.trim();
       if (t.includes("</think>")) t = (t.split("</think>").pop() || t).trim();
-      t = t.replace(/\$\$[\s\S]*?\$\$/g,"").replace(/\$[^$\n]*?\$/g,"");
-      return t.replace(/^(okay|sure|baik|tentu|of course|tentu saja)[,!.\s]*/i,"").trim();
+      t = t.replace(/\/\$\/\$[\s\S]*?\/\$\/\$/g,"").replace(/\/\$[^\/\$\n]*?\/\$/g,"");
+      return t.replace(/^(okay|sure|baik|tentu|of course|tentu saja|halo!|hai!)[,!.\s]*/i,"").trim();
     }
 
     function readBody(req) {
@@ -42,12 +61,19 @@
       if (!key) { console.log("[chat] No GROQ_API_KEY"); return null; }
       try {
         const model = GROQ_MODELS[modelId] || "llama-3.3-70b-versatile";
-        console.log("[chat] Groq model:", model);
+        const enriched = injectSystem(messages);
         const res = await Promise.race([
           fetch("https://api.groq.com/openai/v1/chat/completions", {
             method:"POST",
             headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
-            body: JSON.stringify({ model, messages, max_tokens:2048, temperature:0.7 }),
+            body: JSON.stringify({
+              model,
+              messages: enriched,
+              max_tokens: 4096,
+              temperature: 0.75,
+              top_p: 0.9,
+              frequency_penalty: 0.1,
+            }),
           }),
           timeout(25000),
         ]);
@@ -58,7 +84,6 @@
         }
         const d = await res.json();
         const text = d.choices?.[0]?.message?.content || "";
-        console.log("[chat] Groq ok, len:", text.length);
         return text.trim() ? text : null;
       } catch(e) {
         console.log("[chat] Groq exception:", e.message);
@@ -69,27 +94,21 @@
     async function tryPollinations(messages) {
       const seed = Math.floor(Math.random() * 999999);
       const userMsg = messages.filter(m => m.role === "user").pop()?.content || "";
-      const sysMsg = messages.find(m => m.role === "system")?.content || "";
+      const sysMsg = messages.find(m => m.role === "system")?.content || DEFAULT_SYSTEM;
       const hist = messages.filter(m => m.role !== "system").slice(0,-1)
-        .map(m => (m.role==="user"?"User":"AI") + ": " + m.content.slice(0,300)).join("\n");
-      const fullSys = hist ? sysMsg + "\n\nKonteks:\n" + hist : sysMsg;
+        .map(m => (m.role==="user"?"User":"Nixx AI") + ": " + m.content.slice(0,300)).join("\n");
+      const fullSys = hist ? sysMsg + "\n\nKonteks percakapan:\n" + hist : sysMsg;
 
-      // model "openai" = model yang masih aktif di Pollinations
       const url = "https://text.pollinations.ai/" +
         encodeURIComponent(userMsg.slice(0,800)) +
         "?model=openai&seed=" + seed +
-        "&system=" + encodeURIComponent(fullSys.slice(0,1200)) +
+        "&system=" + encodeURIComponent(fullSys.slice(0,1500)) +
         "&private=true";
 
       try {
-        console.log("[chat] Trying Pollinations fallback");
-        const res = await Promise.race([
-          fetch(url),
-          timeout(20000),
-        ]);
+        const res = await Promise.race([fetch(url), timeout(20000)]);
         if (!res.ok) { console.log("[chat] Pollinations error", res.status); return null; }
         const text = await res.text();
-        console.log("[chat] Pollinations ok, len:", text.length);
         return text.trim() || null;
       } catch(e) {
         console.log("[chat] Pollinations exception:", e.message);
