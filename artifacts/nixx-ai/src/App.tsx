@@ -3,13 +3,15 @@ import React, { Suspense, lazy } from "react";
   import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
   import { AuthProvider, useAuth } from "@/context/AuthContext";
 
-  // Lazy load — bundle dipecah per halaman, initial load jauh lebih kecil
-  const LandingPage    = lazy(() => import("@/pages/LandingPage"));
-  const DashboardPage  = lazy(() => import("@/pages/DashboardPage"));
-  const AuthPage       = lazy(() => import("@/pages/AuthPage"));
-  const NotFound       = lazy(() => import("@/pages/not-found"));
-  const TermsPage      = lazy(() => import("@/pages/TermsPage"));
-  const AdminPage      = lazy(() => import("@/pages/admin"));
+  // Eager — halaman utama yang langsung dibutuhkan
+  import DashboardPage from "@/pages/DashboardPage";
+  import AuthPage from "@/pages/AuthPage";
+
+  // Lazy — jarang diakses, split jadi chunk terpisah
+  const LandingPage = lazy(() => import("@/pages/LandingPage"));
+  const NotFound    = lazy(() => import("@/pages/not-found"));
+  const TermsPage   = lazy(() => import("@/pages/TermsPage"));
+  const AdminPage   = lazy(() => import("@/pages/admin"));
 
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
@@ -17,12 +19,11 @@ import React, { Suspense, lazy } from "react";
 
   const basePath = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 
-  // Spinner hanya muncul saat chunk halaman baru sedang download (sangat jarang setelah pertama)
   function PageLoader() {
     return (
       <div style={{
         minHeight: "100dvh", display: "flex", alignItems: "center",
-        justifyContent: "center", background: "#0d0d0f", flexDirection: "column", gap: "1rem",
+        justifyContent: "center", background: "#0d0d0f",
       }}>
         <div style={{
           width: 40, height: 40, borderRadius: "50%",
