@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
 import { WelcomeScreen } from "@/components/chat/WelcomeScreen";
+import { ProfileModal } from "@/components/chat/ProfileModal";
+import { LimitModal } from "@/components/chat/LimitModal";
 import { getModelById } from "@/lib/models";
 
 // ─── Module-level counter — diinisialisasi dari localStorage agar tidak bentrok
@@ -601,33 +603,7 @@ export default function DashboardPage() {
 
     // ─── Message limit helpers ───────────────────────────────────────────────
 
-  // ── Premium helpers ──────────────────────────────────────────
-  const PREM_KEY = (uid: string) => `nx-prem-${uid}`;
-  const USED_KEY  = (uid: string) => `nx-codes-${uid}`;
-  function checkPremium(uid: string): boolean {
-    const exp = localStorage.getItem(PREM_KEY(uid));
-    if (!exp) return false;
-    return new Date(exp) > new Date();
-  }
-  function getPremExpiry(uid: string): string | null {
-    const exp = localStorage.getItem(PREM_KEY(uid));
-    if (!exp || new Date(exp) <= new Date()) return null;
-    return new Date(exp).toLocaleDateString("id-ID", { day:"numeric", month:"long", year:"numeric" });
-  }
-  function activatePremCode(uid: string, code: string): { ok: boolean; msg: string } {
-    const c = code.trim().toUpperCase();
-    const used: string[] = JSON.parse(localStorage.getItem(USED_KEY(uid)) ?? "[]");
-    if (used.includes(c)) return { ok: false, msg: "Kode sudah digunakan." };
-    let days = 0;
-    if      (/^NH-[A-Z0-9]{4,}$/.test(c)) days = 1;
-    else if (/^NW-[A-Z0-9]{4,}$/.test(c)) days = 7;
-    else if (/^NB-[A-Z0-9]{4,}$/.test(c)) days = 30;
-    else return { ok: false, msg: "Kode tidak valid. Cek lagi kodenya." };
-    const exp = new Date(); exp.setDate(exp.getDate() + days);
-    localStorage.setItem(PREM_KEY(uid), exp.toISOString());
-    used.push(c); localStorage.setItem(USED_KEY(uid), JSON.stringify(used));
-    return { ok: true, msg: `✅ Premium aktif hingga ${exp.toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"})}!` };
-  }
+import { checkPremium, getPremExpiry, activatePremCode } from "@/utils/premium";
   
     const MSG_LIMIT = 10;
     const MSG_COUNT_KEY = "nx-msg-count";
@@ -1000,193 +976,9 @@ export default function DashboardPage() {
 
       {/* ── Modal Karakter AI ── */}
       {/* ── Limit Modal ── */}
-        {showProfile && (
-            <div style={{
-              position:"fixed",inset:0,background:"rgba(0,0,0,0.72)",zIndex:300,
-              display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",
-              backdropFilter:"blur(4px)",
-            }} onClick={() => setShowProfile(false)}>
-              <div onClick={e => e.stopPropagation()} style={{
-                background:"#13111e",border:"1.5px solid rgba(168,85,247,0.4)",borderRadius:"24px",
-                padding:"28px 20px 24px",maxWidth:"360px",width:"100%",textAlign:"center",
-                boxShadow:"0 24px 80px rgba(168,85,247,0.3)",
-              }}>
-                {/* Avatar */}
-                <div style={{
-                  width:72,height:72,borderRadius:"50%",margin:"0 auto 14px",
-                  background: isPrem ? "linear-gradient(135deg,#f59e0b,#d97706)" : "linear-gradient(135deg,#a855f7,#7c3aed)",
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  fontSize:28,fontWeight:800,color:"#fff",
-                  boxShadow: isPrem ? "0 4px 20px rgba(245,158,11,0.5)" : "0 4px 20px rgba(168,85,247,0.5)",
-                }}>
-                  {(user?.username ?? user?.email ?? "U").charAt(0).toUpperCase()}
-                </div>
-                {/* Nama & email */}
-                <div style={{fontWeight:800,fontSize:"1.1rem",color:"#f0eeff",marginBottom:4}}>
-                  {user?.username ?? "User"}
-                </div>
-                <div style={{fontSize:12,color:"#7b6fa0",marginBottom:16}}>{user?.email}</div>
-                {/* Badge status */}
-                <div style={{
-                  display:"inline-flex",alignItems:"center",gap:6,
-                  background: isPrem ? "rgba(245,158,11,0.15)" : "rgba(168,85,247,0.1)",
-                  border: `1.5px solid ${isPrem ? "rgba(245,158,11,0.4)" : "rgba(168,85,247,0.3)"}`,
-                  borderRadius:999,padding:"6px 14px",marginBottom:16,fontSize:13,fontWeight:700,
-                  color: isPrem ? "#f59e0b" : "#a78bfa",
-                }}>
-                  {isPrem ? "⭐ Premium" : "🆓 Gratis"}
-                </div>
-                {/* Info status */}
-                {isPrem ? (
-                  <p style={{fontSize:13,color:"#7b6fa0",marginBottom:20}}>
-                    Aktif hingga <strong style={{color:"#f0eeff"}}>{premExpiry}</strong>
-                  </p>
-                ) : (
-                  <p style={{fontSize:13,color:"#7b6fa0",marginBottom:20}}>
-                    Sisa pesan hari ini: <strong style={{color:"#c084fc"}}>{todayLeft} / {MSG_LIMIT}</strong>
-                  </p>
-                )}
-                {/* Aktivasi kode */}
-                {!isPrem && (
-                  <div style={{background:"rgba(255,255,255,0.04)",borderRadius:16,padding:"16px",marginBottom:16}}>
-                    <div style={{fontSize:12,color:"#a78bfa",fontWeight:700,marginBottom:8,textAlign:"left"}}>🔑 Punya kode premium?</div>
-                    <div style={{display:"flex",gap:8}}>
-                      <input
-                        value={codeInput}
-                        onChange={e => { setCodeInput(e.target.value.toUpperCase()); setCodeMsg(null); }}
-                        placeholder="NH-XXXX / NW-XXXX / NB-XXXX"
-                        style={{
-                          flex:1,background:"rgba(255,255,255,0.07)",border:"1.5px solid rgba(168,85,247,0.3)",
-                          borderRadius:10,padding:"10px 12px",color:"#f0eeff",fontSize:12,outline:"none",
-                        }}
-                      />
-                      <button
-                        onClick={() => {
-                          if (!user) return;
-                          const res = activatePremCode(user.id, codeInput);
-                          setCodeMsg(res);
-                          if (res.ok) setCodeInput("");
-                        }}
-                        style={{
-                          background:"linear-gradient(135deg,#a855f7,#7c3aed)",color:"#fff",
-                          border:"none",borderRadius:10,padding:"10px 14px",fontWeight:700,
-                          fontSize:12,cursor:"pointer",whiteSpace:"nowrap",
-                        }}
-                      >Aktifkan</button>
-                    </div>
-                    {codeMsg && (
-                      <div style={{
-                        marginTop:8,fontSize:12,fontWeight:600,textAlign:"left",
-                        color: codeMsg.ok ? "#4ade80" : "#f87171",
-                      }}>{codeMsg.msg}</div>
-                    )}
-                  </div>
-                )}
-                {/* Upgrade button jika gratis */}
-                {!isPrem && (
-                  <button onClick={() => { setShowProfile(false); setShowLimit(true); setShowPricing(true); }} style={{
-                    display:"block",width:"100%",marginBottom:10,
-                    background:"linear-gradient(135deg,#a855f7,#7c3aed)",
-                    color:"#fff",fontWeight:700,fontSize:14,padding:"12px",
-                    borderRadius:14,border:"none",cursor:"pointer",
-                    boxShadow:"0 4px 20px rgba(168,85,247,0.4)",
-                  }}>✨ Upgrade Premium</button>
-                )}
-                <button onClick={() => setShowProfile(false)} style={{
-                  background:"none",border:"none",color:"#7b6fa0",fontSize:13,cursor:"pointer",padding:"6px",
-                }}>Tutup</button>
-              </div>
-            </div>
-          )}
+        {showProfile && <ProfileModal user={user} isPrem={isPrem} premExpiry={premExpiry} todayLeft={todayLeft} msgLimit={MSG_LIMIT} codeInput={codeInput} codeMsg={codeMsg} setCodeInput={setCodeInput} setCodeMsg={setCodeMsg} onClose={() => setShowProfile(false)} onUpgrade={() => { setShowProfile(false); setShowLimit(true); setShowPricing(true); }} />}
   
-        {showLimit && (
-            <div style={{
-              position:"fixed",inset:0,background:"rgba(0,0,0,0.72)",zIndex:300,
-              display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",
-              backdropFilter:"blur(4px)",
-            }} onClick={() => { setShowLimit(false); setShowPricing(false); }}>
-              <div onClick={e => e.stopPropagation()} style={{
-                background:"#13111e",border:"1.5px solid rgba(168,85,247,0.5)",borderRadius:"24px",
-                padding:"28px 20px 24px",maxWidth:"360px",width:"100%",textAlign:"center",
-                boxShadow:"0 24px 80px rgba(168,85,247,0.35)",
-              }}>
-                {!showPricing ? (
-                  <>
-                    <div style={{fontSize:56,marginBottom:10}}>👑</div>
-                    <h2 style={{fontSize:"1.25rem",fontWeight:800,color:"#f0eeff",margin:"0 0 10px"}}>
-                      Limit Harian Habis!
-                    </h2>
-                    <p style={{color:"#a78bfa",fontSize:14,lineHeight:1.6,margin:"0 0 22px"}}>
-                      Kamu sudah mencapai batas pesan gratis hari ini. Upgrade ke Premium untuk kirim pesan unlimited!
-                    </p>
-                    <button onClick={() => setShowPricing(true)} style={{
-                      display:"block",width:"100%",
-                      background:"linear-gradient(135deg,#a855f7,#7c3aed)",
-                      color:"#fff",fontWeight:700,fontSize:15,padding:"14px",
-                      borderRadius:"14px",border:"none",cursor:"pointer",marginBottom:10,
-                      boxShadow:"0 4px 20px rgba(168,85,247,0.45)",
-                    }}>
-                      ✨ Upgrade ke Premium
-                    </button>
-                    <button onClick={() => setShowLimit(false)} style={{
-                      display:"block",width:"100%",
-                      background:"rgba(255,255,255,0.06)",border:"1.5px solid rgba(255,255,255,0.12)",
-                      color:"#a78bfa",fontWeight:600,fontSize:14,padding:"12px",
-                      borderRadius:"14px",cursor:"pointer",
-                    }}>
-                      Lanjut Gratis
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div style={{fontSize:40,marginBottom:8}}>✨</div>
-                    <h2 style={{fontSize:"1.1rem",fontWeight:800,color:"#f0eeff",margin:"0 0 6px"}}>
-                      Pilih Paket Premium
-                    </h2>
-                    <p style={{color:"#7b6fa0",fontSize:12,margin:"0 0 16px"}}>Pesan unlimited · Semua model AI · Aktivasi cepat</p>
-                    {[
-                      { label:"1 Hari",   price:"Rp 3.000",  per:"/ hari",   badge:"" },
-                      { label:"1 Minggu", price:"Rp 15.000", per:"/ minggu", badge:"HEMAT" },
-                      { label:"1 Bulan",  price:"Rp 45.000", per:"/ bulan",  badge:"TERBAIK" },
-                    ].map(pkg => (
-                      <a
-                        key={pkg.label}
-                        href={`https://wa.me/6282260914586?text=Halo+kak+mau+order+Premium+Nixx+AI+paket+${encodeURIComponent(pkg.label)}+${encodeURIComponent(pkg.price)}`}
-                        target="_blank" rel="noreferrer"
-                        style={{
-                          display:"flex",alignItems:"center",justifyContent:"space-between",
-                          background:"rgba(168,85,247,0.1)",border:"1.5px solid rgba(168,85,247,0.3)",
-                          borderRadius:"14px",padding:"13px 16px",marginBottom:10,
-                          textDecoration:"none",
-                        }}
-                      >
-                        <div style={{textAlign:"left"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:6}}>
-                            <span style={{fontWeight:700,fontSize:14,color:"#f0eeff"}}>{pkg.label}</span>
-                            {pkg.badge && (
-                              <span style={{
-                                background:"linear-gradient(135deg,#f59e0b,#d97706)",
-                                color:"#fff",fontSize:9,fontWeight:800,padding:"2px 6px",borderRadius:6,
-                              }}>{pkg.badge}</span>
-                            )}
-                          </div>
-                          <div style={{fontSize:11,color:"#7b6fa0",marginTop:2}}>Order via WhatsApp · Aktivasi cepat</div>
-                        </div>
-                        <div style={{textAlign:"right"}}>
-                          <div style={{fontWeight:800,fontSize:15,color:"#c084fc"}}>{pkg.price}</div>
-                          <div style={{fontSize:11,color:"#7b6fa0"}}>{pkg.per}</div>
-                        </div>
-                      </a>
-                    ))}
-                    <button onClick={() => setShowPricing(false)} style={{
-                      background:"none",border:"none",color:"#7b6fa0",fontSize:13,
-                      cursor:"pointer",padding:"8px",marginTop:4,
-                    }}>← Kembali</button>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
+        {showLimit && <LimitModal showPricing={showPricing} onClose={() => { setShowLimit(false); setShowPricing(false); }} onUpgrade={() => setShowPricing(true)} onBack={() => setShowPricing(false)} />}
 
         {showCharModal && (
         <div className="nx-char-overlay" onClick={() => setShowCharModal(false)}>
