@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
 import { WelcomeScreen } from "@/components/chat/WelcomeScreen";
+import { checkPremium, getPremExpiry, activatePremCode } from "@/utils/premium";
 import { ProfileModal } from "@/components/chat/ProfileModal";
 import { LimitModal } from "@/components/chat/LimitModal";
 import { getModelById } from "@/lib/models";
@@ -603,7 +604,6 @@ export default function DashboardPage() {
 
     // ─── Message limit helpers ───────────────────────────────────────────────
 
-import { checkPremium, getPremExpiry, activatePremCode } from "@/utils/premium";
   
     const MSG_LIMIT = 10;
     const MSG_COUNT_KEY = "nx-msg-count";
