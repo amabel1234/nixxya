@@ -622,6 +622,9 @@ export default function DashboardPage() {
     const send = async (txt: string) => {
     const userText = txt.trim();
     if ((!userText && !pendingFile) || busy) return;
+    // ── Limit pesan harian ──
+    if (getTodayCount() >= MSG_LIMIT) { setShowLimit(true); return; }
+    incrementMsgCount();
     const wasImgMode = imgMode;
     setInput(""); setImgMode(false); if (inputRef.current) inputRef.current.style.height = "auto";
 
