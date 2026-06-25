@@ -1,0 +1,17 @@
+{
+  "name": "Nixx AI",
+  "short_name": "Nixx AI",
+  "description": "Asisten AI Pintar — 26 Model, Gratis Selamanya",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0b0a1a",
+  "theme_color": "#a855f7",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
