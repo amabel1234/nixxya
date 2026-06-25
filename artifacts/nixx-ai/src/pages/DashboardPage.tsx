@@ -356,6 +356,7 @@ export default function DashboardPage() {
   const [showAttach, setShowAttach] = useState(false);
   const [showCharModal, setShowCharModal] = useState(false);
     const [showLimit, setShowLimit] = useState(false);
+      const [showPricing, setShowPricing] = useState(false);
   const [activeCharId, setActiveCharId] = useState<string>(() =>
     localStorage.getItem(LS_CHAR_KEY) ?? "default"
   );
