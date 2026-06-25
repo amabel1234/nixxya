@@ -355,6 +355,7 @@ export default function DashboardPage() {
   const [imgMode, setImgMode] = useState(false);
   const [showAttach, setShowAttach] = useState(false);
   const [showCharModal, setShowCharModal] = useState(false);
+    const [showLimit, setShowLimit] = useState(false);
   const [activeCharId, setActiveCharId] = useState<string>(() =>
     localStorage.getItem(LS_CHAR_KEY) ?? "default"
   );
@@ -590,7 +591,35 @@ export default function DashboardPage() {
   };
 
   // ── Kirim Pesan ───────────────────────────────────────────────────────────
-  const send = async (txt: string) => {
+
+    // ─── Message limit helpers ───────────────────────────────────────────────
+    const MSG_LIMIT = 10;
+    const MSG_COUNT_KEY = "nx-msg-count";
+    const MSG_DATE_KEY  = "nx-msg-date";
+
+    function getTodayCount(): number {
+      try {
+        const today = new Date().toDateString();
+        const savedDate = localStorage.getItem(MSG_DATE_KEY);
+        if (savedDate !== today) {
+          localStorage.setItem(MSG_DATE_KEY, today);
+          localStorage.setItem(MSG_COUNT_KEY, "0");
+          return 0;
+        }
+        return parseInt(localStorage.getItem(MSG_COUNT_KEY) ?? "0", 10);
+      } catch { return 0; }
+    }
+
+    function incrementMsgCount() {
+      try {
+        const today = new Date().toDateString();
+        localStorage.setItem(MSG_DATE_KEY, today);
+        const cur = parseInt(localStorage.getItem(MSG_COUNT_KEY) ?? "0", 10);
+        localStorage.setItem(MSG_COUNT_KEY, String(cur + 1));
+      } catch {}
+    }
+    // ────────────────────────────────────────────────────────────────────────
+    const send = async (txt: string) => {
     const userText = txt.trim();
     if ((!userText && !pendingFile) || busy) return;
     const wasImgMode = imgMode;
@@ -921,7 +950,46 @@ export default function DashboardPage() {
       {showAttach && <div style={{ position: "fixed", inset: 0, zIndex: 110 }} onClick={() => setShowAttach(false)} />}
 
       {/* ── Modal Karakter AI ── */}
-      {showCharModal && (
+      {/* ── Limit Modal ── */}
+        {showLimit && (
+          <div style={{
+            position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:300,
+            display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",
+          }} onClick={() => setShowLimit(false)}>
+            <div onClick={e => e.stopPropagation()} style={{
+              background:"#1e1a2e",border:"1.5px solid #a855f7",borderRadius:"20px",
+              padding:"28px 24px",maxWidth:"340px",width:"100%",textAlign:"center",
+              boxShadow:"0 20px 60px rgba(168,85,247,0.3)",
+            }}>
+              <div style={{fontSize:52,marginBottom:8}}>🚀</div>
+              <h2 style={{fontSize:"1.2rem",fontWeight:800,color:"#f0eeff",marginBottom:6}}>
+                Limit Pesan Tercapai!
+              </h2>
+              <p style={{color:"#a78bfa",fontSize:14,marginBottom:4}}>
+                Kamu sudah mengirim <strong style={{color:"#c084fc"}}>10 pesan</strong> hari ini.
+              </p>
+              <p style={{color:"#7b6fa0",fontSize:13,marginBottom:20,lineHeight:1.5}}>
+                Upgrade ke <strong style={{color:"#a855f7"}}>Premium</strong> untuk pesan tak terbatas, akses semua model AI, dan fitur eksklusif lainnya!
+              </p>
+              <a href="/premium" style={{
+                display:"block",background:"linear-gradient(135deg,#a855f7,#7c3aed)",
+                color:"#fff",fontWeight:700,fontSize:15,padding:"12px 24px",
+                borderRadius:"12px",textDecoration:"none",marginBottom:10,
+                boxShadow:"0 4px 16px rgba(168,85,247,0.4)",
+              }}>
+                ✨ Upgrade Premium Sekarang
+              </a>
+              <button onClick={() => setShowLimit(false)} style={{
+                background:"none",border:"none",color:"#7b6fa0",fontSize:13,
+                cursor:"pointer",padding:"6px",
+              }}>
+                Tutup
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showCharModal && (
         <div className="nx-char-overlay" onClick={() => setShowCharModal(false)}>
           <div className="nx-char-modal" onClick={e => e.stopPropagation()}>
             <div className="nx-char-header">
