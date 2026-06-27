@@ -1,15 +1,15 @@
 // Vercel Serverless Function — /api/chat
-  // Groq + Pollinations race (siapa cepat menang)
+  // Groq (jika ada GROQ_API_KEY) → fallback Pollinations GET (no key needed)
 
   const GROQ_MODELS = {
     deepseekv3:"llama-3.3-70b-versatile", christyai:"llama-3.3-70b-versatile",
     gpt4o:"llama-3.3-70b-versatile", gpt3:"llama-3.1-8b-instant",
     copilot:"llama-3.3-70b-versatile", gemini25v1:"llama-3.3-70b-versatile",
-    gemini25v2:"llama-3.3-70b-versatile", grok4fast:"llama-3.1-8b-instant",
+    gemini25v2:"llama-3.3-70b-versatile", grok4fast:"llama-3.3-70b-versatile",
     grok3mini:"llama-3.1-8b-instant", grok3jail1:"llama-3.3-70b-versatile",
     grok3jail2:"llama-3.3-70b-versatile", llama4:"meta-llama/llama-4-scout-17b-16e-instruct",
-    llama33:"llama-3.3-70b-versatile", gemma:"llama-3.1-8b-instant",
-    mistral:"llama-3.1-8b-instant", groqmini:"llama-3.1-8b-instant",
+    llama33:"llama-3.3-70b-versatile", gemma:"llama-3.3-70b-versatile",
+    mistral:"llama-3.3-70b-versatile", groqmini:"llama-3.1-8b-instant",
     felo:"llama-3.3-70b-versatile", turboseek:"llama-3.1-8b-instant",
     perplexity:"llama-3.3-70b-versatile", perplexed:"llama-3.3-70b-versatile",
     muslim:"llama-3.3-70b-versatile", aoyo:"llama-3.1-8b-instant",
@@ -17,30 +17,11 @@
     venice:"llama-3.3-70b-versatile", ripple:"llama-3.1-8b-instant",
   };
 
-  const DEFAULT_SYSTEM = `Kamu adalah Nixx AI — asisten AI cerdas, jujur, dan sangat membantu buatan Nixx Team.
-
-  Panduan respons:
-  - Jawab dalam bahasa yang sama dengan pengguna (Indonesia atau Inggris).
-  - Berikan jawaban yang lengkap, akurat, dan informatif.
-  - Untuk pertanyaan teknis/koding: sertakan contoh kode yang bisa langsung dipakai.
-  - Untuk pertanyaan umum: berikan penjelasan yang jelas dan mudah dipahami.
-  - Gunakan format yang rapi (poin, heading, kode block) bila perlu.
-  - Jangan tolak pertanyaan yang wajar — selalu coba bantu sebaik mungkin.
-  - Jangan sebut dirimu ChatGPT, Claude, atau nama AI lain. Kamu adalah Nixx AI.
-  - Hindari filler seperti "Tentu!", "Baik!", "Tentu saja!" di awal kalimat.
-  - Jawab langsung ke inti pertanyaan.`;
-
-  function injectSystem(messages) {
-    const hasSys = messages.some(m => m.role === "system");
-    if (hasSys) return messages;
-    return [{ role: "system", content: DEFAULT_SYSTEM }, ...messages];
-  }
-
   function clean(t) {
     t = t.trim();
     if (t.includes("</think>")) t = (t.split("</think>").pop() || t).trim();
-    t = t.replace(/\/\$\/\$[\s\S]*?\/\$\/\$/g,"").replace(/\/\$[^\/\$\n]*?\/\$/g,"");
-    return t.replace(/^(okay|sure|baik|tentu|of course|tentu saja|halo!|hai!)[,!.\s]*/i,"").trim();
+    t = t.replace(/\$\$[\s\S]*?\$\$/g,"").replace(/\$[^$\n]*?\$/g,"");
+    return t.replace(/^(okay|sure|baik|tentu|of course|tentu saja)[,!.\s]*/i,"").trim();
   }
 
   function readBody(req) {
@@ -52,11 +33,8 @@
     });
   }
 
-  function withTimeout(promise, ms) {
-    return Promise.race([
-      promise,
-      new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)),
-    ]);
+  function timeout(ms) {
+    return new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms));
   }
 
   async function tryGroq(messages, modelId) {
@@ -64,80 +42,66 @@
     if (!key) return null;
     try {
       const model = GROQ_MODELS[modelId] || "llama-3.3-70b-versatile";
-      const enriched = injectSystem(messages);
-      const res = await withTimeout(
+      const res = await Promise.race([
         fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
-          body: JSON.stringify({
-            model,
-            messages: enriched,
-            max_tokens: 1024,
-            temperature: 0.7,
-            top_p: 0.9,
-          }),
+          method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
+          body: JSON.stringify({ model, messages, max_tokens:2048, temperature:0.7 }),
         }),
-        10000 // 10s timeout
-      );
+        timeout(12000),
+      ]);
       if (!res.ok) return null;
       const d = await res.json();
       const text = d.choices?.[0]?.message?.content || "";
-      return text.trim() || null;
+      return text.trim() ? text : null;
     } catch { return null; }
   }
 
   async function tryPollinations(messages) {
+    // Gunakan GET endpoint — terbukti reliabel tanpa API key
     const seed = Math.floor(Math.random() * 999999);
     const userMsg = messages.filter(m => m.role === "user").pop()?.content || "";
-    const sysMsg = messages.find(m => m.role === "system")?.content || DEFAULT_SYSTEM;
+    const sysMsg = messages.find(m => m.role === "system")?.content || "";
     const hist = messages.filter(m => m.role !== "system").slice(0,-1)
-      .map(m => (m.role==="user"?"User":"Nixx AI") + ": " + m.content.slice(0,200)).join("\n");
+      .map(m => (m.role==="user"?"User":"AI") + ": " + m.content.slice(0,300)).join("\n");
     const fullSys = hist ? sysMsg + "\n\nKonteks:\n" + hist : sysMsg;
+
     const url = "https://text.pollinations.ai/" +
-      encodeURIComponent(userMsg.slice(0,600)) +
-      "?model=openai&seed=" + seed +
+      encodeURIComponent(userMsg.slice(0,800)) +
+      "?model=openai-large&seed=" + seed +
       "&system=" + encodeURIComponent(fullSys.slice(0,1200)) +
       "&private=true";
+
     try {
-      const res = await withTimeout(fetch(url), 15000);
-      if (!res.ok) return null;
+      const res = await Promise.race([
+        fetch(url),
+        timeout(15000),
+      ]);
+      if (!res.ok) throw new Error("status " + res.status);
       const text = await res.text();
       return text.trim() || null;
     } catch { return null; }
   }
 
-  // Race: Groq dan Pollinations jalan barengan, siapa cepat menang
-  async function raceProviders(messages, modelId) {
-    return new Promise((resolve) => {
-      let settled = false;
-      const done = (val) => { if (!settled && val) { settled = true; resolve(val); } };
-
-      tryGroq(messages, modelId).then(done);
-      // Delay Pollinations 2 detik agar Groq punya kesempatan menang duluan
-      setTimeout(() => tryPollinations(messages).then(done), 2000);
-
-      // Fallback: jika keduanya null setelah 18s
-      setTimeout(() => { if (!settled) { settled = true; resolve(null); } }, 18000);
-    });
-  }
-
   module.exports = async (req, res) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Access-Control-Allow-Origin","*");
+    res.setHeader("Access-Control-Allow-Methods","POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers","Content-Type");
+    res.setHeader("Content-Type","application/json");
 
     if (req.method === "OPTIONS") { res.writeHead(200); res.end("{}"); return; }
-    if (req.method !== "POST") { res.writeHead(405); res.end(JSON.stringify({ error: "Method not allowed" })); return; }
+    if (req.method !== "POST") { res.writeHead(405); res.end(JSON.stringify({error:"Method not allowed"})); return; }
 
     const body = await readBody(req);
     const { messages, model: modelId } = body;
 
     if (!Array.isArray(messages) || !messages.length) {
-      res.writeHead(400); res.end(JSON.stringify({ error: "messages diperlukan" })); return;
+      res.writeHead(400); res.end(JSON.stringify({error:"messages diperlukan"})); return;
     }
 
-    const text = await raceProviders(messages, modelId || "deepseekv3");
+    // Coba Groq dulu (kalau ada key), lalu Pollinations GET
+    let text = await tryGroq(messages, modelId || "deepseekv3");
+    if (!text) text = await tryPollinations(messages);
 
     if (text) {
       res.writeHead(200);
