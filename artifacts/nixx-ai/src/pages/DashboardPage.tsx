@@ -2,9 +2,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
 import { WelcomeScreen } from "@/components/chat/WelcomeScreen";
-import { checkPremium, getPremExpiry, activatePremCode } from "@/utils/premium";
-import { ProfileModal } from "@/components/chat/ProfileModal";
-import { LimitModal } from "@/components/chat/LimitModal";
 import { getModelById } from "@/lib/models";
 
 // ─── Module-level counter — diinisialisasi dari localStorage agar tidak bentrok
@@ -358,14 +355,6 @@ export default function DashboardPage() {
   const [imgMode, setImgMode] = useState(false);
   const [showAttach, setShowAttach] = useState(false);
   const [showCharModal, setShowCharModal] = useState(false);
-    const [showLimit, setShowLimit] = useState(false);
-      const [showPricing, setShowPricing] = useState(false);
-    const [showProfile, setShowProfile] = useState(false);
-    const [codeInput, setCodeInput] = useState("");
-    const [codeMsg, setCodeMsg] = useState<{ok:boolean;msg:string}|null>(null);
-    const isPrem = user ? checkPremium(user.id) : false;
-    const premExpiry = user ? getPremExpiry(user.id) : null;
-    const todayLeft = Math.max(0, MSG_LIMIT - getTodayCount());
   const [activeCharId, setActiveCharId] = useState<string>(() =>
     localStorage.getItem(LS_CHAR_KEY) ?? "default"
   );
@@ -601,42 +590,9 @@ export default function DashboardPage() {
   };
 
   // ── Kirim Pesan ───────────────────────────────────────────────────────────
-
-    // ─── Message limit helpers ───────────────────────────────────────────────
-
-  
-    const MSG_LIMIT = 10;
-    const MSG_COUNT_KEY = "nx-msg-count";
-    const MSG_DATE_KEY  = "nx-msg-date";
-
-    function getTodayCount(): number {
-      try {
-        const today = new Date().toDateString();
-        const savedDate = localStorage.getItem(MSG_DATE_KEY);
-        if (savedDate !== today) {
-          localStorage.setItem(MSG_DATE_KEY, today);
-          localStorage.setItem(MSG_COUNT_KEY, "0");
-          return 0;
-        }
-        return parseInt(localStorage.getItem(MSG_COUNT_KEY) ?? "0", 10);
-      } catch { return 0; }
-    }
-
-    function incrementMsgCount() {
-      try {
-        const today = new Date().toDateString();
-        localStorage.setItem(MSG_DATE_KEY, today);
-        const cur = parseInt(localStorage.getItem(MSG_COUNT_KEY) ?? "0", 10);
-        localStorage.setItem(MSG_COUNT_KEY, String(cur + 1));
-      } catch {}
-    }
-    // ────────────────────────────────────────────────────────────────────────
-    const send = async (txt: string) => {
+  const send = async (txt: string) => {
     const userText = txt.trim();
     if ((!userText && !pendingFile) || busy) return;
-    // ── Limit pesan harian ──
-    if (!isPrem && getTodayCount() >= MSG_LIMIT) { setShowLimit(true); return; }
-    incrementMsgCount();
     const wasImgMode = imgMode;
     setInput(""); setImgMode(false); if (inputRef.current) inputRef.current.style.height = "auto";
 
@@ -760,16 +716,6 @@ export default function DashboardPage() {
             <span>{curModel.emoji}</span>
             <span style={{ maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{curModel.label}</span>
           </div>
-          <button onClick={() => { setShowProfile(true); setCodeMsg(null); setCodeInput(""); }} style={{
-              width:36,height:36,borderRadius:"50%",
-              background: isPrem ? "linear-gradient(135deg,#f59e0b,#d97706)" : "rgba(168,85,247,0.25)",
-              border: isPrem ? "2px solid #f59e0b" : "2px solid rgba(168,85,247,0.5)",
-              color:"#fff",fontWeight:800,fontSize:13,cursor:"pointer",
-              display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
-              title:"Profil Saya",
-            }}>
-              {(user?.username ?? user?.email ?? "U").charAt(0).toUpperCase()}
-            </button>
         </div>
 
         <div className="nx-chat-container">
@@ -975,12 +921,7 @@ export default function DashboardPage() {
       {showAttach && <div style={{ position: "fixed", inset: 0, zIndex: 110 }} onClick={() => setShowAttach(false)} />}
 
       {/* ── Modal Karakter AI ── */}
-      {/* ── Limit Modal ── */}
-        {showProfile && <ProfileModal user={user} isPrem={isPrem} premExpiry={premExpiry} todayLeft={todayLeft} msgLimit={MSG_LIMIT} codeInput={codeInput} codeMsg={codeMsg} setCodeInput={setCodeInput} setCodeMsg={setCodeMsg} onClose={() => setShowProfile(false)} onUpgrade={() => { setShowProfile(false); setShowLimit(true); setShowPricing(true); }} />}
-  
-        {showLimit && <LimitModal showPricing={showPricing} onClose={() => { setShowLimit(false); setShowPricing(false); }} onUpgrade={() => setShowPricing(true)} onBack={() => setShowPricing(false)} />}
-
-        {showCharModal && (
+      {showCharModal && (
         <div className="nx-char-overlay" onClick={() => setShowCharModal(false)}>
           <div className="nx-char-modal" onClick={e => e.stopPropagation()}>
             <div className="nx-char-header">
