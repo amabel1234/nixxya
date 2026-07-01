@@ -127,7 +127,12 @@ export default function ChatPage() {
       <div className={`nx-sidebar-overlay ${sidebarOpen ? "active" : ""}`} onClick={() => setSidebarOpen(false)} />
 
       <div className={`nx-sidebar ${sidebarOpen ? "active" : ""}`}>
-        <div className="nx-sidebar-user">
+        <div
+            className="nx-sidebar-user"
+            onClick={() => { navigate(`${basePath}/profile`); setSidebarOpen(false); }}
+            style={{ cursor: "pointer" }}
+            title="Lihat profil"
+          >
           {user?.imageUrl && (
             <img src={user.imageUrl} alt="avatar" className="nx-user-avatar" />
           )}
