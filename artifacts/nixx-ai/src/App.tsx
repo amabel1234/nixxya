@@ -53,6 +53,9 @@ function AppRoutes() {
       <Route path="/admin">
         <AdminPage />
       </Route>
+      <Route path="/profile">
+        {user ? <ProfilePage /> : <Redirect to="/sign-in" />}
+      </Route>
       <Route path="/syarat">
         <TermsPage />
       </Route>
