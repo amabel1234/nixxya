@@ -296,6 +296,13 @@ const CSS = `
 .nx-genimg-btn:hover{background:rgba(168,85,247,.28)}
 .nx-genimg-prompt{font-size:11px;color:var(--nx-text-muted,#7b6fa0);font-style:italic;margin-top:2px}
 .nx-tb-btn.img-on{color:#a855f7;background:rgba(168,85,247,.2);border:1px solid rgba(168,85,247,.35)}
+.nx-genimg-skeleton{width:100%;aspect-ratio:1/1;max-height:420px;border-radius:12px;background:linear-gradient(90deg,rgba(168,85,247,.08) 25%,rgba(168,85,247,.18) 50%,rgba(168,85,247,.08) 75%);background-size:200% 100%;animation:nx-shimmer 1.4s infinite;border:1px solid rgba(168,85,247,.2)}
+@keyframes nx-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.nx-genimg-loading-label{font-size:12px;color:#a855f7;display:flex;align-items:center;gap:6px;font-weight:600}
+.nx-genimg-loading-dot{width:6px;height:6px;border-radius:50%;background:#a855f7;display:inline-block;animation:nx-dot-bounce .8s infinite alternate}
+.nx-genimg-loading-dot:nth-child(2){animation-delay:.15s}
+.nx-genimg-loading-dot:nth-child(3){animation-delay:.3s}
+@keyframes nx-dot-bounce{0%{transform:translateY(0);opacity:.4}100%{transform:translateY(-5px);opacity:1}}
 
 .nx-char-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;animation:nx-fadeIn .15s ease}
 @media(min-width:600px){.nx-char-overlay{align-items:center}}
@@ -330,6 +337,48 @@ function fileIcon(name: string, kind: "file" | "audio") {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
+// ─── Komponen gambar AI dengan loading skeleton ───────────────────────────────
+function GenImage({ url, prompt }: { url: string; prompt?: string }) {
+  const [loaded, setLoaded] = React.useState(false);
+  const [error, setError] = React.useState(false);
+  return (
+    <div className="nx-genimg-wrap">
+      {!loaded && !error && (
+        <>
+          <div className="nx-genimg-skeleton" />
+          <div className="nx-genimg-loading-label">
+            <span className="nx-genimg-loading-dot" />
+            <span className="nx-genimg-loading-dot" />
+            <span className="nx-genimg-loading-dot" />
+            Membuat gambar...
+          </div>
+        </>
+      )}
+      {error && (
+        <div style={{padding:"14px",borderRadius:"12px",background:"rgba(239,68,68,.1)",border:"1px solid rgba(239,68,68,.25)",color:"#f87171",fontSize:13}}>
+          ❌ Gagal muat gambar —{" "}
+          <a href={url} target="_blank" rel="noopener noreferrer" style={{color:"#c084fc"}}>Buka di tab baru</a>
+        </div>
+      )}
+      <img
+        src={url}
+        alt={prompt ?? "Generated"}
+        className="nx-genimg"
+        style={loaded ? {} : { display: "none" }}
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+      />
+      {loaded && (
+        <div className="nx-genimg-actions">
+          <a href={url} target="_blank" rel="noopener noreferrer" className="nx-genimg-btn">🔗 Buka</a>
+          <a href={url} download={`nixx-img-${Date.now()}.jpg`} className="nx-genimg-btn">⬇️ Unduh</a>
+        </div>
+      )}
+      {(loaded || error) && prompt && <div className="nx-genimg-prompt">Prompt: {prompt}</div>}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [convs, setConvs] = useState<LocalConv[]>(() => load());
@@ -762,24 +811,7 @@ export default function DashboardPage() {
                         )}
                         {/* Gambar yang di-generate AI */}
                         {msg.attach?.kind === "generated-image" && msg.attach.imageUrl && (
-                          <div className="nx-genimg-wrap">
-                            <img
-                              src={msg.attach.imageUrl}
-                              alt={msg.attach.prompt ?? "Generated"}
-                              className="nx-genimg"
-                              loading="eager"
-                              onError={e => { const t = e.target as HTMLImageElement; t.style.opacity="0.3"; t.alt="Gagal muat gambar — klik Buka"; }}
-                            />
-                            <div className="nx-genimg-actions">
-                              <a href={msg.attach.imageUrl} target="_blank" rel="noopener noreferrer" className="nx-genimg-btn">
-                                🔗 Buka
-                              </a>
-                              <a href={msg.attach.imageUrl} download={`nixx-img-${Date.now()}.jpg`} className="nx-genimg-btn">
-                                ⬇️ Unduh
-                              </a>
-                            </div>
-                            {msg.attach.prompt && <div className="nx-genimg-prompt">Prompt: {msg.attach.prompt}</div>}
-                          </div>
+                          <GenImage url={msg.attach.imageUrl} prompt={msg.attach.prompt} />
                         )}
                         {/* Teks pesan */}
                         {msg.role === "user" ? (msg.text ?? "") : (msg.attach?.kind === "generated-image" ? null : msg.content)}
