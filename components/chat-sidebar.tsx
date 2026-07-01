@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "wouter";
 import { OpenaiConversation } from "@workspace/api-client-react";
 
 interface Model {
@@ -32,9 +33,20 @@ export default function ChatSidebar({
   onClearChat,
   onSelectModel,
 }: ChatSidebarProps) {
+  const [, navigate] = useLocation();
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   return (
     <>
-      <button className="nx-sidebar-btn" onClick={onNewChat}>
+      <button
+          className="nx-sidebar-btn"
+          onClick={() => navigate(`${basePath}/profile`)}
+          style={{ background: "rgba(124,58,237,0.12)", borderColor: "rgba(124,58,237,0.4)", color: "#7c3aed", fontWeight: 700 }}
+        >
+          <span>👤</span>
+          PROFIL SAYA
+        </button>
+
+        <button className="nx-sidebar-btn" onClick={onNewChat}>
         <span>✏️</span>
         PERCAKAPAN BARU
       </button>
