@@ -43,7 +43,13 @@ function saveUsers(users: UserRow[]) { localStorage.setItem("nx-users-db", JSON.
 function loadPricing(): PricingTier[] {
   try { return JSON.parse(localStorage.getItem("nx-pricing") ?? "null") ?? DEFAULT_PRICING; } catch { return DEFAULT_PRICING; }
 }
-function savePricing(p: PricingTier[]) { localStorage.setItem("nx-pricing", JSON.stringify(p)); }
+function savePricing(p: PricingTier[]) {
+    localStorage.setItem("nx-pricing", JSON.stringify(p));
+    fetch("/api/settings/admin", {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ pricing_tiers: JSON.stringify(p) }),
+    }).catch(() => {});
+  }
 
 const ALL_NAV: { id: Page; label: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "⊞" },
