@@ -1,7 +1,7 @@
 import React from "react";
 
 const FEATURES = [
-  { emoji: "🚀", title: "26 Model AI Gratis", desc: "Nixx AI, Grok, Gemini, Llama, GPT — semua tersedia tanpa biaya." },
+  { emoji: "🚀", title: "27 Model AI Gratis", desc: "Nixx AI, Grok, Gemini, Llama, GPT — semua tersedia tanpa biaya." },
   { emoji: "💬", title: "Chat Bahasa Indonesia", desc: "Santai, natural, dan mudah dimengerti — bukan jawaban robot kaku." },
   { emoji: "⚡", title: "Streaming Real-Time", desc: "Respons muncul langsung karakter per karakter, tanpa loading lama." },
   { emoji: "🔒", title: "Aman & Privat", desc: "Percakapanmu tersimpan aman, tidak dibagikan ke pihak manapun." },
@@ -30,7 +30,7 @@ export default function LandingPage() {
           Selamat datang di <span>Nixx AI</span>
         </h1>
         <p className="nx-landing-sub">
-          Asisten AI pintar gratis selamanya — 26 model AI dalam satu platform!
+          Asisten AI pintar gratis selamanya — 27 Model AI dalam satu platform!
         </p>
         <p className="nx-landing-free">✨ Tanpa biaya · Tanpa iklan · Selamanya gratis</p>
 
