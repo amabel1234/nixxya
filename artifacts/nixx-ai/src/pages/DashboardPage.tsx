@@ -179,46 +179,45 @@ function extractImagePrompt(text: string) {
   return text.replace(IMG_TRIGGERS, "").trim() || text.trim();
 }
 async function generateImage(prompt: string): Promise<string> {
-    // Gunakan server-side API (/api/generate-image) supaya tidak ada CORS issue
-    const res = await fetch("/api/generate-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({})) as { error?: string };
-      throw new Error(err.error ?? `Gagal generate gambar (${res.status})`);
-    }
-    const data = await res.json() as { dataUrl?: string; error?: string };
-    if (!data.dataUrl) throw new Error(data.error ?? "Respon gambar kosong");
-    return data.dataUrl;
-  }
+  const encoded = encodeURIComponent(prompt);
+  return `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&nologo=true&seed=${Date.now()}`;
+}
 async function askAI(msg: string, hist: { role: string; content: string }[], modelId: string, charPrompt?: string) {
   const sys = getSys(modelId, charPrompt);
+  const groqModel = GROQ_MODEL_MAP[modelId] ?? "llama-3.3-70b-versatile";
   const messages = [
     { role: "system", content: sys },
-    ...hist.slice(-8).map(m => ({ role: m.role, content: m.content.slice(0, 2000) })),
+    ...hist.slice(-8).map((m: { role: string; content: string }) => ({ role: m.role, content: m.content.slice(0, 2000) })),
     { role: "user", content: msg },
   ];
 
-  // ── Panggil backend /api/chat (Groq server-side → fallback Pollinations) ──
-  const res = await fetch("/api/chat", {
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY ?? "";
+  if (!apiKey) throw new Error("API key tidak ditemukan");
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, model: modelId }),
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: groqModel,
+      messages,
+      max_tokens: 1024,
+      temperature: 0.7,
+    }),
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(err.error ?? `HTTP ${res.status}`);
+    const err = await res.json().catch(() => ({})) as { error?: { message?: string } };
+    throw new Error(err.error?.message ?? `Groq error ${res.status}`);
   }
 
-  const data = await res.json() as { content?: string };
-  const text = data.content ?? "";
-  if (!text.trim()) throw new Error("Respon kosong dari AI");
+  const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+  const text = cleanResp(data.choices?.[0]?.message?.content ?? "");
+  if (!text.trim()) throw new Error("AI sedang sibuk, coba lagi dalam beberapa detik ya!");
   return text;
 }
-
 // ─── Storage ──────────────────────────────────────────────────────────────────
 const LS_KEY = "nx-chat-history";
 function load(): LocalConv[] {
