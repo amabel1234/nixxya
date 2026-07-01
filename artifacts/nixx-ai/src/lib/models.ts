@@ -40,7 +40,9 @@ export const AI_MODELS: AIModel[] = [
   { id: "gptoss120",  label: "GPT-OSS 120B",    emoji: "💻", badge: "120B",     group: "Lainnya",     actualModel: "gptoss120"  },
   { id: "gptoss20",   label: "GPT-OSS 20B",     emoji: "💻", badge: "20B",      group: "Lainnya",     actualModel: "gptoss20"   },
   { id: "perplexed",  label: "Perplexed AI",    emoji: "❓", badge: "Canggih",  group: "Lainnya",     actualModel: "perplexed"  },
+  { id: "mblai",      label: "MBL AI",          emoji: "🔥", badge: "Baru",     group: "Lainnya",     actualModel: "mblai"      },
 ];
 
 export const getModelById = (id: string): AIModel =>
   AI_MODELS.find((m) => m.id === id) ?? AI_MODELS[0];
+
