@@ -9,6 +9,7 @@ import HomePage from "@/pages/home";
 import ChatPage from "@/pages/chat";
 import PremiumPage from "@/pages/premium";
 import AdminPage from "@/pages/admin";
+import ProfilePage from "@/pages/profile";
 import SignInPage from "@/pages/sign-in";
 import SignUpPage from "@/pages/sign-up";
 import NotFound from "@/pages/not-found";
@@ -143,6 +144,7 @@ function Router() {
       <Route path="/chat" component={ChatPage} />
       <Route path="/premium" component={PremiumPage} />
       <Route path="/admin" component={AdminPage} />
+      <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );
