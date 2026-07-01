@@ -146,6 +146,10 @@ export default function ChatPage() {
           </div>
         </div>
 
+        <button className="nx-profile-btn" style={{ marginBottom: 6 }} onClick={() => { navigate(`${basePath}/profile`); setSidebarOpen(false); }}>
+          👤 Profil Saya
+        </button>
+
         {!isPremium && (
           <div className="nx-sidebar-upgrade">
             <button className="nx-upgrade-btn" onClick={() => { navigate(`${basePath}/premium`); setSidebarOpen(false); }}>
@@ -167,9 +171,6 @@ export default function ChatPage() {
         />
 
         <div className="nx-sidebar-footer">
-          <button className="nx-profile-btn" onClick={() => { navigate(`${basePath}/profile`); setSidebarOpen(false); }}>
-            👤 Profil Saya
-          </button>
           <button className="nx-logout-btn" onClick={() => signOut({ redirectUrl: `${basePath}/` })}>
             🚪 Keluar
           </button>
