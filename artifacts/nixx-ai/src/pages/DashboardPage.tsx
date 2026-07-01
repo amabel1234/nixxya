@@ -709,7 +709,7 @@ export default function DashboardPage() {
             <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(255,255,255,.2)", border: "2.5px solid rgba(255,255,255,.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🧠</div>
             <div>
               <div className="nx-logo">Nixx AI</div>
-              <div className="nx-tagline">26 Model AI · Gratis Selamanya ✨</div>
+              <div className="nx-tagline">27 Model AI · Gratis Selamanya ✨</div>
             </div>
           </div>
           <div className="nx-model-chip">
