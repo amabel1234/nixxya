@@ -146,9 +146,21 @@ export default function ChatPage() {
           </div>
         </div>
 
-        <button className="nx-profile-btn" style={{ marginBottom: 6 }} onClick={() => { navigate(`${basePath}/profile`); setSidebarOpen(false); }}>
-          👤 Profil Saya
-        </button>
+        <button
+            onClick={() => { navigate(`${basePath}/profile`); setSidebarOpen(false); }}
+            style={{
+              width:"100%", padding:"10px 14px",
+              background:"rgba(124,58,237,0.12)",
+              border:"1.5px solid rgba(124,58,237,0.4)",
+              borderRadius:10, color:"#7c3aed",
+              fontSize:"0.875rem", fontWeight:600,
+              cursor:"pointer", display:"flex",
+              alignItems:"center", gap:8,
+              marginBottom:8, fontFamily:"inherit",
+            }}
+          >
+            👤 Profil Saya
+          </button>
 
         {!isPremium && (
           <div className="nx-sidebar-upgrade">
