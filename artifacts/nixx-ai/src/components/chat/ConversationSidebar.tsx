@@ -24,6 +24,8 @@ interface ConversationSidebarProps {
 }
 
 const MENU_ITEMS = [
+  
+  { emoji: "👤", label: "PROFIL SAYA", action: () => { window.location.href = "/profile"; } },
   { emoji: "👨‍💻", label: "DEVELOPER 🚀", action: () => alert("Developer: Nixx Team\nContact: t.me/nixsukakamu") },
   { emoji: "🏪", label: "STORE MENU 🛍️", action: () => window.open("https://www.privatedomain.my.id", "_blank") },
   { emoji: "👥", label: "COMMUNITY 🌐", action: () => window.open("https://t.me/nixsukakamu", "_blank") },
