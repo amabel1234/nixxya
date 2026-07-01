@@ -141,34 +141,35 @@ function cleanResp(t: string) {
     .replace(/\\\[[\s\S]*?\\\]/g, "").replace(/\\\([\s\S]*?\\\)/g, "");
   return t.replace(/^(okay|sure|baik|tentu|of course|tentu saja)[,!.]?\s*/i, "").trim();
 }
-// Map model ID → Groq model name
+// Map model ID → Groq model name (hanya model yang tersedia di Groq)
 const GROQ_MODEL_MAP: Record<string, string> = {
-  deepseekv3:  "deepseek-r1-distill-llama-70b",
+  deepseekv3:  "llama-3.3-70b-versatile",
   christyai:   "llama-3.3-70b-versatile",
   gpt4o:       "llama-3.3-70b-versatile",
   gpt3:        "llama-3.1-8b-instant",
   copilot:     "llama-3.3-70b-versatile",
-  gemini25v1:  "gemma2-9b-it",
-  gemini25v2:  "gemma2-9b-it",
+  gemini25v1:  "llama-3.3-70b-versatile",
+  gemini25v2:  "qwen/qwen3-32b",
   grok4fast:   "llama-3.3-70b-versatile",
   grok3mini:   "llama-3.1-8b-instant",
   grok3jail1:  "llama-3.3-70b-versatile",
   grok3jail2:  "llama-3.3-70b-versatile",
   llama4:      "meta-llama/llama-4-scout-17b-16e-instruct",
   llama33:     "llama-3.3-70b-versatile",
-  gemma:       "gemma2-9b-it",
-  mistral:     "mixtral-8x7b-32768",
+  gemma:       "llama-3.1-8b-instant",
+  mistral:     "llama-3.1-8b-instant",
   groqmini:    "llama-3.1-8b-instant",
   felo:        "llama-3.3-70b-versatile",
   turboseek:   "llama-3.1-8b-instant",
   perplexity:  "llama-3.3-70b-versatile",
-  perplexed:   "llama-3.3-70b-versatile",
+  perplexed:   "qwen/qwen3-32b",
   muslim:      "llama-3.3-70b-versatile",
   aoyo:        "llama-3.1-8b-instant",
-  gptoss120:   "llama-3.3-70b-versatile",
-  gptoss20:    "llama-3.1-8b-instant",
+  gptoss120:   "openai/gpt-oss-120b",
+  gptoss20:    "openai/gpt-oss-20b",
   venice:      "llama-3.3-70b-versatile",
   ripple:      "llama-3.1-8b-instant",
+  mblai:       "llama-3.3-70b-versatile",
 };
 
 // ─── Image generation via Pollinations ────────────────────────────────────────
