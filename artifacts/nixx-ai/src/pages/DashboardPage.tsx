@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
 import { WelcomeScreen } from "@/components/chat/WelcomeScreen";
+import { LimitModal } from "@/components/chat/LimitModal";
 import { getModelById } from "@/lib/models";
 
 // ─── Module-level counter — diinisialisasi dari localStorage agar tidak bentrok
@@ -129,6 +130,28 @@ const CHARACTERS: AICharacter[] = [
   { id: "chef",     emoji: "👨‍🍳", name: "Chef AI",       desc: "Resep masakan & tips kuliner",               prompt: "Kamu adalah Chef AI, ahli masakan dengan pengetahuan kuliner luas. Berikan resep lengkap dengan bahan dan langkah detail, tips memasak, substitusi bahan, dan rekomendasi menu." },
 ];
 const LS_CHAR_KEY = "nx-active-char";
+
+// ─── Limit harian ─────────────────────────────────────────────────────────────
+const DAILY_LIMIT = 7;
+const LS_LIMIT_COUNT = "nx-daily-count";
+const LS_LIMIT_DATE  = "nx-daily-date";
+const LS_PREMIUM     = "nx-premium";
+
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function isPremium() { return localStorage.getItem(LS_PREMIUM) === "1"; }
+function getDailyCount(): number {
+  if (localStorage.getItem(LS_LIMIT_DATE) !== todayStr()) {
+    localStorage.setItem(LS_LIMIT_DATE, todayStr());
+    localStorage.setItem(LS_LIMIT_COUNT, "0");
+    return 0;
+  }
+  return parseInt(localStorage.getItem(LS_LIMIT_COUNT) ?? "0", 10);
+}
+function addDailyCount() {
+  const n = getDailyCount() + 1;
+  localStorage.setItem(LS_LIMIT_COUNT, String(n));
+  return n;
+}
 
 function getSys(id: string, charPrompt?: string) {
   const base = charPrompt ?? (SYS[id] ?? "Kamu adalah Nixx AI.");
@@ -407,6 +430,8 @@ export default function DashboardPage() {
   const [activeCharId, setActiveCharId] = useState<string>(() =>
     localStorage.getItem(LS_CHAR_KEY) ?? "default"
   );
+  const [showLimit, setShowLimit] = React.useState(false);
+  const [showPricing, setShowPricing] = React.useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -642,6 +667,10 @@ export default function DashboardPage() {
   const send = async (txt: string) => {
     const userText = txt.trim();
     if ((!userText && !pendingFile) || busy) return;
+    // ── Cek limit harian ──────────────────────────────────────────────────────
+    if (!isPremium() && getDailyCount() >= DAILY_LIMIT) {
+      setShowLimit(true); setShowPricing(false); return;
+    }
     const wasImgMode = imgMode;
     setInput(""); setImgMode(false); if (inputRef.current) inputRef.current.style.height = "auto";
 
@@ -705,6 +734,7 @@ export default function DashboardPage() {
 
     const cid = convId;
     const nextMsgs = [...prevMsgs, userMsg];
+    if (!isPremium()) addDailyCount();
     setConvs(p => p.map(c => c.id === cid ? { ...c, messages: nextMsgs } : c));
     await doStream(nextMsgs, cid, wasImgMode ? userText : undefined);
   };
@@ -899,7 +929,16 @@ export default function DashboardPage() {
                   title="Lampirkan file atau pilih mode"
                 >+</button>
 
-                {showAttach && (
+                {/* Limit Modal */}
+      {showLimit && (
+        <LimitModal
+          showPricing={showPricing}
+          onClose={() => { setShowLimit(false); setShowPricing(false); }}
+          onUpgrade={() => setShowPricing(true)}
+          onBack={() => setShowPricing(false)}
+        />
+      )}
+      {showAttach && (
                   <div className="nx-plus-menu" style={{ zIndex: 130 }}>
                     <button className={`nx-plus-item${imgMode ? " active-mode" : ""}`} onClick={() => { setImgMode(v => !v); setShowAttach(false); setTimeout(() => inputRef.current?.focus(), 50); }}>
                       <span className="pi">🖼️</span> {imgMode ? "Buat Gambar ✓" : "Buat Gambar"}
