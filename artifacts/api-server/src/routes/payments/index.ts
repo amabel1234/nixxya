@@ -57,3 +57,21 @@ router.get("/my", async (req, res) => {
 });
 
 export default router;
+
+  // Notify endpoint — no auth required, just sends Telegram + stores in DB
+  router.post("/notify", async (req, res) => {
+    const { name, phone, planName, amount, qrisRef } = req.body as {
+      name: string; phone: string; planName?: string; amount?: number; qrisRef?: string;
+    };
+    if (!name || !phone) { res.status(400).json({ error: "name dan phone wajib" }); return; }
+
+    await sendTelegramNotification(
+      `💳 <b>Pembayaran Baru — Nixx AI!</b>\n\n` +
+      `👤 Nama: ${name}\n📱 No HP: ${phone}\n` +
+      `📦 Paket: ${planName ?? "-"}\n💰 Jumlah: Rp${Number(amount ?? 0).toLocaleString("id-ID")}\n` +
+      `🔖 Ref: ${qrisRef ?? "-"}\n\n⏰ ${new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })} WIB`
+    );
+
+    res.status(201).json({ ok: true });
+  });
+  
